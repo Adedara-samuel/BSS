@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FiHome, FiMusic, FiFilm, FiMic, FiSmile, FiUser, FiSearch, FiChevronRight, FiX, FiCalendar, FiMapPin, FiPlus, FiEdit2, FiTrash2, FiLogIn, FiPlayCircle, FiAward, FiLogOut } from 'react-icons/fi';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 
@@ -21,7 +21,6 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
 
 type ContentItem = {
   id: number;
@@ -225,15 +224,6 @@ function EntertainmentPlatform() {
     } else {
       console.error('Paystack not loaded yet');
       alert('Payment system is not ready. Please try again later.');
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      const result = await signInWithPopup(auth, provider);
-      setUser(result.user);
-    } catch (error) {
-      console.error('Google Sign-In Error:', error);
     }
   };
 
@@ -743,9 +733,17 @@ function EntertainmentPlatform() {
 
       {!isMobile && (
         <div className="fixed left-0 top-0 h-full w-16 md:w-64 bg-[#2A2A2A] z-20 shadow-lg">
-          <div className="p-4 flex justify-center md:justify-start">
-            <span className="text-[#FFD700] font-extrabold text-2xl hidden md:block">BSS</span>
-          </div>
+            <div className="p-6 flex flex-col justify-center md:justify-start items-center">
+              <Image
+              src="/images/logo.png"
+              alt="BSS Logo"
+              width={200}
+              height={200}
+              className="w-20 h-20"
+              unoptimized
+              />
+              <span className="text-[#FFD700] font-extrabold text-xl hidden md:block">Bss Entertainment</span>
+            </div>
           <nav className="mt-8">
             {[
               { icon: <FiHome size={24} />, label: 'Home', id: 'trending' },
@@ -815,20 +813,7 @@ function EntertainmentPlatform() {
                 </div>
               </div>
             ) : (
-              <button
-                onClick={handleGoogleSignIn}
-                className="flex items-center bg-white text-[#1A1A1A] hover:bg-[#FFD700] px-4 py-2 rounded-full transition-transform transform hover:scale-105"
-              >
-                <Image
-                  src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg"
-                  alt="Google logo"
-                  width={16}
-                  height={16}
-                  className="mr-2"
-                  unoptimized
-                />
-                Sign In
-              </button>
+              <></>
             )}
           </div>
         </header>
