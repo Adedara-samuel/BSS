@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiHome, FiMusic, FiFilm, FiMic, FiSmile, FiUser, FiSearch, FiChevronRight, FiX, FiCalendar, FiMapPin, FiPlus, FiEdit2, FiTrash2, FiLogIn, FiPlayCircle, FiAward, FiLogOut } from 'react-icons/fi';
+import { FiHome, FiMusic, FiFilm, FiMic, FiSmile, FiUser, FiSearch, FiChevronRight, FiX, FiCalendar, FiMapPin, FiPlus, FiEdit2, FiTrash2, FiLogIn, FiPlayCircle, FiAward, FiLogOut, FiMail, FiPhone, FiInfo, FiMenu, FiDollarSign, FiUsers, FiBarChart2, FiCreditCard, FiEyeOff, FiEye } from 'react-icons/fi';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import Image from 'next/image';
@@ -37,6 +38,7 @@ type Contestant = {
   bio: string;
   image: string;
   votes: number;
+  amountGained: number;
   description: string;
 };
 
@@ -78,18 +80,45 @@ const dummyImages = {
     'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
     'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
   ],
+  about: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
 };
 
-function EntertainmentPlatform() {
+// Google Maps component
+const Map = ({ location }: { location: string }) => {
+  return (
+    <div className="h-full w-full">
+      <iframe
+        width="100%"
+        height="100%"
+        frameBorder="0"
+        scrolling="no"
+        marginHeight={0}
+        marginWidth={0}
+        src={`https://maps.google.com/maps?q=${encodeURIComponent(location)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+        className="min-h-[400px]"
+      ></iframe>
+    </div>
+  );
+};
+
+function EntertainmentWebsite() {
   // State management
-  const [isLanding, setIsLanding] = useState(true);
-  const [activeCategory, setActiveCategory] = useState('trending');
+  const [activeSection, setActiveSection] = useState('home');
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminView, setAdminView] = useState('dashboard');
   const [contestants, setContestants] = useState<Contestant[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [showVoteDialog, setShowVoteDialog] = useState(false);
+  const [selectedContestant, setSelectedContestant] = useState<Contestant | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [adminCredentials, setAdminCredentials] = useState({
+    username: '',
+    password: '',
+  });
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [newContestant, setNewContestant] = useState({
     name: '',
     category: 'music',
@@ -103,16 +132,12 @@ function EntertainmentPlatform() {
     location: '',
     image: '',
   });
-  const [adminCredentials, setAdminCredentials] = useState({
-    username: '',
-    password: '',
-  });
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
-  const [showVoteDialog, setShowVoteDialog] = useState(false);
-  const [selectedContestant, setSelectedContestant] = useState<Contestant | null>(null);
-  const [showContestantDrawer, setShowContestantDrawer] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [editingContestant, setEditingContestant] = useState<Contestant | null>(null);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const companyLocation = "Ikerre 361101, Ekiti, Nigeria";
+
   type PaystackConfig = {
     reference: string;
     email: string;
@@ -160,6 +185,7 @@ function EntertainmentPlatform() {
         description: `This is a detailed description about Contestant ${index + 1}. They are participating in the ${['music', 'comedy', 'movie', 'talk'][index % 4]} category. Vote for them to support their talent and help them win the competition.`,
         image: img,
         votes: Math.floor(Math.random() * 1000),
+        amountGained: Math.floor(Math.random() * 100000),
       }))
     );
 
@@ -188,10 +214,34 @@ function EntertainmentPlatform() {
     ]);
   }, []);
 
+  // Track scroll position to update active section
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = ['home', 'about', 'services', 'events', 'contestants', 'contact'];
+      const scrollPosition = window.scrollY + 100;
+
+      for (const section of sections) {
+        const element = document.getElementById(section);
+        if (element) {
+          const offsetTop = element.offsetTop;
+          const offsetHeight = element.offsetHeight;
+
+          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+            setActiveSection(section);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   // Paystack config
   const config = {
     reference: new Date().getTime().toString(),
-    email: user?.email || 'adedarasapok@gmail.com',
+    email: user?.email || 'user@example.com',
     amount: 10000,
     publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || 'pk_live_53b845fbac1a719357828d7b418952de27c1ec84',
   };
@@ -205,7 +255,7 @@ function EntertainmentPlatform() {
     if (selectedContestant) {
       setContestants(
         contestants.map((c) =>
-          c.id === selectedContestant.id ? { ...c, votes: c.votes + 1 } : c
+          c.id === selectedContestant.id ? { ...c, votes: c.votes + 1, amountGained: c.amountGained + 100 } : c
         )
       );
     }
@@ -257,12 +307,14 @@ function EntertainmentPlatform() {
 
   const addContestant = () => {
     if (newContestant.name && newContestant.image) {
+      const newId = contestants.length > 0 ? Math.max(...contestants.map(c => c.id)) + 1 : 1;
       setContestants([
         ...contestants,
         {
-          id: contestants.length + 1,
+          id: newId,
           ...newContestant,
           votes: 0,
+          amountGained: 0,
         },
       ]);
       setNewContestant({
@@ -275,17 +327,30 @@ function EntertainmentPlatform() {
     }
   };
 
+  const updateContestant = () => {
+    if (editingContestant) {
+      setContestants(
+        contestants.map(c =>
+          c.id === editingContestant.id ? editingContestant : c
+        )
+      );
+      setEditingContestant(null);
+    }
+  };
+
   const deleteContestant = (id: number) => {
-    setContestants(contestants.filter((c) => c.id !== id));
+    setContestants(contestants.filter(c => c.id !== id));
   };
 
   const addEvent = () => {
-    if (newEvent.title && newEvent.date && newEvent.image) {
+    if (newEvent.title && newEvent.date) {
+      const newId = events.length > 0 ? Math.max(...events.map(e => e.id)) + 1 : 1;
       setEvents([
         ...events,
         {
-          id: events.length + 1,
+          id: newId,
           ...newEvent,
+          image: newEvent.image || dummyImages.events[Math.floor(Math.random() * dummyImages.events.length)],
         },
       ]);
       setNewEvent({
@@ -297,8 +362,19 @@ function EntertainmentPlatform() {
     }
   };
 
+  const updateEvent = () => {
+    if (editingEvent) {
+      setEvents(
+        events.map(e =>
+          e.id === editingEvent.id ? editingEvent : e
+        )
+      );
+      setEditingEvent(null);
+    }
+  };
+
   const deleteEvent = (id: number) => {
-    setEvents(events.filter((e) => e.id !== id));
+    setEvents(events.filter(e => e.id !== id));
   };
 
   const categories = {
@@ -327,465 +403,549 @@ function EntertainmentPlatform() {
     },
   };
 
-  if (isLanding) {
-    return (
-      <div className="relative min-h-screen bg-[#1A1A1A] text-white overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <Image
-            src={dummyImages.landingBg}
-            alt="Entertainment Platform"
-            layout="fill"
-            objectFit="cover"
-            className="opacity-50"
-            unoptimized
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A] via-transparent to-transparent"></div>
-        </div>
+  const navItems = [
+    { id: 'home', label: 'Home' },
+    { id: 'about', label: 'About' },
+    { id: 'services', label: 'Services' },
+    { id: 'events', label: 'Events' },
+    { id: 'contestants', label: 'Contestants' },
+    { id: 'contact', label: 'Contact' },
+  ];
 
-        <nav className="relative z-10 flex justify-between items-center p-6 md:p-8">
-          <div className="text-3xl md:text-4xl font-extrabold text-[#FFD700] cursor-pointer tracking-tight">
-            BSS Entertainment
-          </div>
-          <div className="flex gap-4 items-center">
-            <button
-              onClick={() => setShowAdminLogin(true)}
-              className="text-white hover:text-[#FFD700] px-4 py-2 rounded-md font-medium transition-colors"
-            >
-              Admin Login
-            </button>
-            <button
-              onClick={() => setIsLanding(false)}
-              className="bg-[#FFD700] text-[#1A1A1A] hover:bg-[#E6C200] px-6 py-2 rounded-full font-semibold transition-transform transform hover:scale-105"
-            >
-              Explore Now
-            </button>
-          </div>
-        </nav>
-
-        {showAdminLogin && (
-          <div className="fixed inset-0 bg-black bg-opacity-70 z-20 flex items-center justify-center p-4 transition-opacity duration-300">
-            <div className="bg-white text-[#1A1A1A] p-8 rounded-xl max-w-md w-full shadow-2xl">
-              <h2 className="text-2xl font-bold mb-6 text-[#FFD700]">Admin Login</h2>
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Username</label>
-                  <input
-                    type="text"
-                    value={adminCredentials.username}
-                    onChange={(e) => setAdminCredentials({ ...adminCredentials, username: e.target.value })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700] focus:outline-none"
-                    placeholder="Enter admin username"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Password</label>
-                  <input
-                    type="password"
-                    value={adminCredentials.password}
-                    onChange={(e) => setAdminCredentials({ ...adminCredentials, password: e.target.value })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700] focus:outline-none"
-                    placeholder="Enter password"
-                  />
-                </div>
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setShowAdminLogin(false)}
-                    className="px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAdminLogin}
-                    className="px-5 py-2 bg-[#FFD700] text-[#1A1A1A] rounded-lg flex items-center hover:bg-[#E6C200] transition-transform transform hover:scale-105"
-                  >
-                    <FiLogIn className="mr-2" />
-                    Login
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="relative z-10 flex flex-col justify-center items-center h-[80vh] px-6 md:px-16 text-center">
-          <h1 className="text-4xl md:text-6xl font-extrabold mb-4 max-w-3xl leading-tight">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-[#FFD700]">
-              Discover Epic Entertainment
-            </span>
-          </h1>
-          <p className="text-lg md:text-xl mb-8 max-w-xl text-gray-300">
-            Immerse yourself in a world of music, movies, comedy, and talk shows with BSS Entertainment.
-          </p>
-          <button
-            onClick={() => setIsLanding(false)}
-            className="bg-[#FFD700] text-[#1A1A1A] px-8 py-3 rounded-full font-semibold text-lg transition-transform transform hover:scale-105 flex items-center"
-          >
-            Get Started
-            <FiChevronRight className="ml-2" size={20} />
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+      setActiveSection(sectionId);
+      setShowMobileMenu(false);
+    }
+  };
 
   if (isAdmin) {
     return (
-      <div className="min-h-screen bg-[#1A1A1A] text-white">
-        <header className="bg-white text-[#1A1A1A] shadow-lg p-4">
-          <div className="container mx-auto flex justify-between items-center">
-            <h1 className="text-2xl md:text-3xl font-extrabold text-[#FFD700] cursor-pointer">
-              BSS Admin Dashboard
-            </h1>
+      <div className="min-h-screen bg-[#1A1A1A] text-gray-100">
+        {/* Admin Header */}
+        <header className="bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] shadow-lg">
+          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-white/10 rounded-lg">
+                <FiAward className="text-white text-xl" />
+              </div>
+              <h1 className="text-xl md:text-2xl font-bold">BSS Admin Dashboard</h1>
+            </div>
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => {
-                  setIsAdmin(false);
-                  setIsLanding(true);
-                }}
-                className="text-[#1A1A1A] hover:text-[#FFD700] transition-colors"
-              >
-                Back to Platform
-              </button>
-              <button
                 onClick={() => setIsAdmin(false)}
-                className="bg-[#FFD700] text-[#1A1A1A] px-4 py-2 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105"
+                className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all duration-200"
               >
-                Logout
+                <FiLogOut className="text-white" />
+                <span className="hidden md:inline">Exit Admin</span>
               </button>
             </div>
           </div>
         </header>
 
-        <nav className="bg-[#2A2A2A] shadow-sm">
-          <div className="container mx-auto flex space-x-6 p-4">
-            {['dashboard', 'contestants', 'events'].map((view) => (
-              <button
-                key={view}
-                onClick={() => setAdminView(view)}
-                className={`px-4 py-2 font-medium capitalize ${adminView === view ? 'text-[#FFD700] border-b-2 border-[#FFD700]' : 'text-gray-300 hover:text-[#FFD700]'}`}
-              >
-                {view}
-              </button>
-            ))}
-          </div>
-        </nav>
+        {/* Admin Main Content */}
+        <main className="container mx-auto px-4 py-8">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-[#2A2A2A] p-6 rounded-xl shadow-sm border border-[#333333] hover:shadow-md transition-shadow cursor-pointer">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">Total Contestants</p>
+                  <h3 className="text-2xl font-bold mt-1 text-[#FFD700]">{contestants.length}</h3>
+                </div>
+                <div className="p-3 bg-[#4F46E5]/10 rounded-lg">
+                  <FiUsers className="text-[#FFD700] text-xl" />
+                </div>
+              </div>
+            </div>
 
-        <main className="container mx-auto p-6">
-          {adminView === 'dashboard' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                { title: 'Total Contestants', value: contestants.length },
-                { title: 'Upcoming Events', value: events.length },
-                { title: 'Total Votes', value: contestants.reduce((sum, c) => sum + c.votes, 0) },
-              ].map((stat) => (
-                <div key={stat.title} className="bg-white p-6 rounded-xl shadow-lg transform hover:scale-105 transition-transform">
-                  <h3 className="text-lg font-semibold mb-2 text-[#1A1A1A]">{stat.title}</h3>
-                  <p className="text-3xl font-bold text-[#FFD700]">{stat.value}</p>
+            <div className="bg-[#2A2A2A] p-6 rounded-xl shadow-sm border border-[#333333] hover:shadow-md transition-shadow cursor-pointer">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">Total Votes</p>
+                  <h3 className="text-2xl font-bold mt-1 text-[#7C3AED]">{contestants.reduce((sum, c) => sum + c.votes, 0)}</h3>
+                </div>
+                <div className="p-3 bg-[#7C3AED]/10 rounded-lg">
+                  <FiBarChart2 className="text-[#7C3AED] text-xl" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#2A2A2A] p-6 rounded-xl shadow-sm border border-[#333333] hover:shadow-md transition-shadow cursor-pointer">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">Total Revenue</p>
+                  <h3 className="text-2xl font-bold mt-1 text-[#10B981]">
+                    ₦{contestants.reduce((sum, c) => sum + c.amountGained, 0).toLocaleString()}
+                  </h3>
+                </div>
+                <div className="p-3 bg-[#10B981]/10 rounded-lg">
+                  <FiCreditCard className="text-[#10B981] text-xl" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Contestants Section */}
+          <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] mb-8 overflow-hidden">
+            <div className="p-6 border-b border-[#333333] flex justify-between items-center">
+              <h2 className="text-xl font-bold text-[#FFD700]">Contestants Management</h2>
+              <button
+                onClick={() => {
+                  setEditingContestant(null);
+                  setNewContestant({
+                    name: '',
+                    category: 'music',
+                    bio: '',
+                    image: '',
+                    description: '',
+                  });
+                }}
+                className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                <FiPlus />
+                <span>Add Contestant</span>
+              </button>
+            </div>
+
+            {/* Add/Edit Contestant Form */}
+            <div className="p-6 border-b border-[#333333]">
+              <h3 className="text-lg font-medium mb-4 text-[#FFD700]">
+                {editingContestant ? 'Edit Contestant' : 'Add New Contestant'}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-400">Name</label>
+                  <input
+                    type="text"
+                    value={editingContestant ? editingContestant.name : newContestant.name}
+                    onChange={(e) => editingContestant
+                      ? setEditingContestant({ ...editingContestant, name: e.target.value })
+                      : setNewContestant({ ...newContestant, name: e.target.value })
+                    }
+                    className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-600">Category</label>
+                  <select
+                    value={editingContestant ? editingContestant.category : newContestant.category}
+                    onChange={(e) => editingContestant
+                      ? setEditingContestant({ ...editingContestant, category: e.target.value })
+                      : setNewContestant({ ...newContestant, category: e.target.value })
+                    }
+                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-pointer text-gray-600"
+                  >
+                    <option value="music" className='text-gray-800'>Music</option>
+                    <option value="comedy" className='text-gray-800'>Comedy</option>
+                    <option value="movie" className='text-gray-800'>Movie</option>
+                    <option value="talk" className='text-gray-800'>Talk Show</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-2 text-gray-600">Image URL</label>
+                  <input
+                    type="text"
+                    value={editingContestant ? editingContestant.image : newContestant.image}
+                    onChange={(e) => editingContestant
+                      ? setEditingContestant({ ...editingContestant, image: e.target.value })
+                      : setNewContestant({ ...newContestant, image: e.target.value })
+                    }
+                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
+                    placeholder="Paste image URL here"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-600">Bio</label>
+                  <input
+                    type="text"
+                    value={editingContestant ? editingContestant.bio : newContestant.bio}
+                    onChange={(e) => editingContestant
+                      ? setEditingContestant({ ...editingContestant, bio: e.target.value })
+                      : setNewContestant({ ...newContestant, bio: e.target.value })
+                    }
+                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-600">Amount Gained (₦)</label>
+                  <input
+                    type="number"
+                    value={editingContestant ? editingContestant.amountGained : 0}
+                    onChange={(e) => editingContestant
+                      ? setEditingContestant({ ...editingContestant, amountGained: Number(e.target.value) })
+                      : null
+                    }
+                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
+                    disabled={!editingContestant}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-2 text-gray-600">Description</label>
+                  <textarea
+                    value={editingContestant ? editingContestant.description : newContestant.description}
+                    onChange={(e) => editingContestant
+                      ? setEditingContestant({ ...editingContestant, description: e.target.value })
+                      : setNewContestant({ ...newContestant, description: e.target.value })
+                    }
+                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
+                    rows={3}
+                  ></textarea>
+                </div>
+              </div>
+              <div className="flex justify-end mt-4 space-x-3">
+                {editingContestant && (
+                  <button
+                    onClick={() => setEditingContestant(null)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  onClick={editingContestant ? updateContestant : addContestant}
+                  className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition-colors"
+                >
+                  {editingContestant ? (
+                    <>
+                      <FiEdit2 />
+                      <span>Update Contestant</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiPlus />
+                      <span>Add Contestant</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Contestants Table */}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-[#333333]">
+                <thead className="bg-[#333333]">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Contestant</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Votes</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-[#2A2A2A] divide-y divide-[#333333]">
+                  {contestants.map((contestant) => (
+                    <tr key={contestant.id} className="hover:bg-[#333333] transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10">
+                            <Image
+                              src={contestant.image}
+                              alt={contestant.name}
+                              width={40}
+                              height={40}
+                              className="rounded-full"
+                              unoptimized
+                            />
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-white">{contestant.name}</div>
+                            <div className="text-sm text-gray-400">{contestant.bio}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{contestant.category}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{contestant.votes}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₦{contestant.amountGained.toLocaleString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => setEditingContestant(contestant)}
+                          className="text-indigo-600 hover:text-indigo-900 mr-4"
+                        >
+                          <FiEdit2 />
+                        </button>
+                        <button
+                          onClick={() => deleteContestant(contestant.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Events Section */}
+          <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] overflow-hidden">
+            <div className="p-6 border-b border-[#333333] flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-400">Events Management</h2>
+              <button
+                onClick={() => {
+                  setEditingEvent(null);
+                  setNewEvent({
+                    title: '',
+                    date: '',
+                    location: '',
+                    image: '',
+                  });
+                }}
+                className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                <FiPlus />
+                <span>Add Event</span>
+              </button>
+            </div>
+
+            {/* Add/Edit Event Form */}
+            <div className="p-6 border-b border-[#333333]">
+              <h3 className="text-lg font-medium mb-4 text-gray-400">
+                {editingEvent ? 'Edit Event' : 'Add New Event'}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-600">Title</label>
+                  <input
+                    type="text"
+                    value={editingEvent ? editingEvent.title : newEvent.title}
+                    onChange={(e) => editingEvent
+                      ? setEditingEvent({ ...editingEvent, title: e.target.value })
+                      : setNewEvent({ ...newEvent, title: e.target.value })
+                    }
+                    className="w-full p-3 border border-[#333333] rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-600">Date</label>
+                  <input
+                    type="date"
+                    value={editingEvent ? editingEvent.date : newEvent.date}
+                    onChange={(e) => editingEvent
+                      ? setEditingEvent({ ...editingEvent, date: e.target.value })
+                      : setNewEvent({ ...newEvent, date: e.target.value })
+                    }
+                    className="w-full p-3 border border-[#333333] rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-600">Location</label>
+                  <input
+                    type="text"
+                    value={editingEvent ? editingEvent.location : newEvent.location}
+                    onChange={(e) => editingEvent
+                      ? setEditingEvent({ ...editingEvent, location: e.target.value })
+                      : setNewEvent({ ...newEvent, location: e.target.value })
+                    }
+                    className="w-full p-3 border border-[#333333] rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-600">Image URL</label>
+                  <input
+                    type="text"
+                    value={editingEvent ? editingEvent.image : newEvent.image}
+                    onChange={(e) => editingEvent
+                      ? setEditingEvent({ ...editingEvent, image: e.target.value })
+                      : setNewEvent({ ...newEvent, image: e.target.value })
+                    }
+                    className="w-full p-3 border border-[#333333] rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
+                    placeholder="Paste image URL here"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end mt-4 space-x-3">
+                {editingEvent && (
+                  <button
+                    onClick={() => setEditingEvent(null)}
+                    className="px-4 py-2 border border-[#333333] text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  onClick={editingEvent ? updateEvent : addEvent}
+                  className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition-colors"
+                >
+                  {editingEvent ? (
+                    <>
+                      <FiEdit2 />
+                      <span>Update Event</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiPlus />
+                      <span>Add Event</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Events Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+              {events.map((event) => (
+                <div key={event.id} className="border border-[#333333] rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="relative h-48">
+                    <Image
+                      src={event.image}
+                      alt={event.title}
+                      layout="fill"
+                      objectFit="cover"
+                      unoptimized
+                    />
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-bold text-lg text-gray-800 mb-2">{event.title}</h3>
+                    <div className="flex items-center text-gray-600 mb-1">
+                      <FiCalendar className="mr-2 text-indigo-500" />
+                      <span>{event.date}</span>
+                    </div>
+                    <div className="flex items-center text-gray-600 mb-4">
+                      <FiMapPin className="mr-2 text-indigo-500" />
+                      <span>{event.location}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <button
+                        onClick={() => setEditingEvent(event)}
+                        className="text-indigo-600 hover:text-indigo-800"
+                      >
+                        <FiEdit2 />
+                      </button>
+                      <button
+                        onClick={() => deleteEvent(event.id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
-          )}
-
-          {adminView === 'contestants' && (
-            <div className="space-y-6">
-              <div className="bg-white p-6 rounded-xl shadow-lg">
-                <h3 className="text-xl font-bold mb-4 text-[#FFD700]">Add New Contestant</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-[#1A1A1A]">Name</label>
-                    <input
-                      type="text"
-                      value={newContestant.name}
-                      onChange={(e) => setNewContestant({ ...newContestant, name: e.target.value })}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-[#1A1A1A]">Category</label>
-                    <select
-                      value={newContestant.category}
-                      onChange={(e) => setNewContestant({ ...newContestant, category: e.target.value })}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700]"
-                    >
-                      <option value="music">Music</option>
-                      <option value="comedy">Comedy</option>
-                      <option value="movie">Movie</option>
-                      <option value="talk">Talk Show</option>
-                    </select>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium mb-2 text-[#1A1A1A]">Bio</label>
-                    <textarea
-                      value={newContestant.bio}
-                      onChange={(e) => setNewContestant({ ...newContestant, bio: e.target.value })}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700]"
-                      rows={3}
-                    ></textarea>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium mb-2 text-[#1A1A1A]">Description</label>
-                    <textarea
-                      value={newContestant.description}
-                      onChange={(e) => setNewContestant({ ...newContestant, description: e.target.value })}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700]"
-                      rows={4}
-                    ></textarea>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium mb-2 text-[#1A1A1A]">Image URL</label>
-                    <input
-                      type="text"
-                      value={newContestant.image}
-                      onChange={(e) => setNewContestant({ ...newContestant, image: e.target.value })}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700]"
-                      placeholder="Paste image URL here"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <button
-                      onClick={addContestant}
-                      className="bg-[#FFD700] text-[#1A1A1A] px-5 py-2 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105 flex items-center"
-                    >
-                      <FiPlus className="mr-2" />
-                      Add Contestant
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-xl shadow-lg">
-                <h3 className="text-xl font-bold mb-4 text-[#FFD700]">All Contestants</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-[#F5F5F5]">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A1A] uppercase">Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A1A] uppercase">Category</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A1A] uppercase">Votes</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A1A] uppercase">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {contestants.map((contestant) => (
-                        <tr key={contestant.id} className="hover:bg-[#F5F5F5] transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10">
-                                <Image
-                                  src={contestant.image}
-                                  alt={contestant.name}
-                                  width={40}
-                                  height={40}
-                                  className="rounded-full"
-                                  unoptimized
-                                />
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-[#1A1A1A]">{contestant.name}</div>
-                                <div className="text-sm text-gray-500">{contestant.bio}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-[#1A1A1A] capitalize">{contestant.category}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-[#1A1A1A]">{contestant.votes}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button className="text-[#FFD700] hover:text-[#E6C200] mr-4">
-                              <FiEdit2 />
-                            </button>
-                            <button
-                              onClick={() => deleteContestant(contestant.id)}
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              <FiTrash2 />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {adminView === 'events' && (
-            <div className="space-y-6">
-              <div className="bg-white p-6 rounded-xl shadow-lg">
-                <h3 className="text-xl font-bold mb-4 text-[#FFD700]">Add New Event</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-[#1A1A1A]">Title</label>
-                    <input
-                      type="text"
-                      value={newEvent.title}
-                      onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-[#1A1A1A]">Date</label>
-                    <input
-                      type="date"
-                      value={newEvent.date}
-                      onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-[#1A1A1A]">Location</label>
-                    <input
-                      type="text"
-                      value={newEvent.location}
-                      onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-[#1A1A1A]">Image URL</label>
-                    <input
-                      type="text"
-                      value={newEvent.image}
-                      onChange={(e) => setNewEvent({ ...newEvent, image: e.target.value })}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700]"
-                      placeholder="Paste image URL here"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <button
-                      onClick={addEvent}
-                      className="bg-[#FFD700] text-[#1A1A1A] px-5 py-2 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105 flex items-center"
-                    >
-                      <FiPlus className="mr-2" />
-                      Add Event
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-xl shadow-lg">
-                <h3 className="text-xl font-bold mb-4 text-[#FFD700]">All Events</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {events.map((event) => (
-                    <div key={event.id} className="bg-[#2A2A2A] rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-                      <Image
-                        src={event.image}
-                        alt={event.title}
-                        width={300}
-                        height={160}
-                        className="w-full h-40 object-cover"
-                        unoptimized
-                      />
-                      <div className="p-4">
-                        <h4 className="font-bold text-lg mb-2 text-white">{event.title}</h4>
-                        <div className="flex items-center text-gray-300 mb-1">
-                          <FiCalendar className="mr-2" />
-                          <span>{event.date}</span>
-                        </div>
-                        <div className="flex items-center text-gray-300 mb-4">
-                          <FiMapPin className="mr-2" />
-                          <span>{event.location}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <button className="text-[#FFD700] hover:text-[#E6C200]">
-                            <FiEdit2 />
-                          </button>
-                          <button
-                            onClick={() => deleteEvent(event.id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </main>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-[#1A1A1A] text-white flex flex-col">
-      {isMobile && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-[#2A2A2A] z-20 flex justify-around items-center p-3 border-t border-[#FFD700]/20 shadow-lg">
-          {[
-            { icon: <FiHome size={24} />, label: 'Home', id: 'trending' },
-            { icon: <FiMusic size={24} />, label: 'Music', id: 'music' },
-            { icon: <FiFilm size={24} />, label: 'Movies', id: 'movies' },
-            { icon: <FiMic size={24} />, label: 'Talk Shows', id: 'talks' },
-            { icon: <FiSmile size={24} />, label: 'Comedy', id: 'comedy' },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveCategory(item.id)}
-              className={`flex flex-col items-center p-2 ${activeCategory === item.id ? 'text-[#FFD700]' : 'text-gray-400'} hover:text-[#FFD700] transition-colors`}
-            >
-              <span className="flex-shrink-0">{item.icon}</span>
-              <span className="text-xs mt-1">{item.label}</span>
-            </button>
-          ))}
-        </nav>
-      )}
+  // Admin Login Modal (updated design)
+  if (showAdminLogin) {
+    return (
+      <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center p-4">
+        <div className="bg-[#2A2A2A] rounded-xl shadow-xl overflow-hidden max-w-md w-full border border-[#333333]">
+          <div className="bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] p-6 text-white text-center">
+            <div className="flex justify-center mb-4">
+              <div className="bg-white/10 p-3 rounded-full">
+                <FiAward className="text-white text-2xl" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold">Admin Portal</h2>
+            <p className="text-indigo-200 mt-1">Enter your credentials to continue</p>
+          </div>
 
-      {!isMobile && (
-        <div className="fixed left-0 top-0 h-full w-16 md:w-64 bg-[#2A2A2A] z-20 shadow-lg">
-            <div className="p-6 flex flex-col justify-center md:justify-start items-center">
-              <Image
+          <div className="p-6">
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-400">Username</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiUser className="text-gray-500" />
+                  </div>
+                  <input
+                    type="text"
+                    value={adminCredentials.username}
+                    onChange={(e) => setAdminCredentials({ ...adminCredentials, username: e.target.value })}
+                    className="w-full pl-10 p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
+                    placeholder="Enter admin username"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-400">Password</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiLogIn className="text-gray-500" />
+                  </div>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={adminCredentials.password}
+                    onChange={(e) => setAdminCredentials({ ...adminCredentials, password: e.target.value })}
+                    className="w-full pl-10 pr-10 p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
+                    placeholder="Enter password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <FiEyeOff className="text-gray-400 hover:text-gray-300" />
+                    ) : (
+                      <FiEye className="text-gray-400 hover:text-gray-300" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={() => setShowAdminLogin(false)}
+                  className="px-5 py-2 border border-[#444444] text-gray-300 rounded-lg hover:bg-[#333333] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAdminLogin}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] text-white px-5 py-2 rounded-lg hover:opacity-90 transition-opacity cursor-pointer"
+                >
+                  <span>Login</span>
+                  <FiChevronRight />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#1A1A1A] text-white">
+      {/* Header */}
+      <header className="bg-[#2A2A2A] sticky top-0 z-50 shadow-lg">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center cursor-pointer" onClick={() => scrollToSection('home')}>
+            <Image
               src="/images/logo.png"
               alt="BSS Logo"
-              width={200}
-              height={200}
-              className="w-20 h-20"
+              width={40}
+              height={40}
+              className="w-10 h-10"
               unoptimized
-              />
-              <span className="text-[#FFD700] font-extrabold text-xl hidden md:block">Bss Entertainment</span>
-            </div>
-          <nav className="mt-8">
-            {[
-              { icon: <FiHome size={24} />, label: 'Home', id: 'trending' },
-              { icon: <FiMusic size={24} />, label: 'Music', id: 'music' },
-              { icon: <FiFilm size={24} />, label: 'Movies', id: 'movies' },
-              { icon: <FiMic size={24} />, label: 'Talk Shows', id: 'talks' },
-              { icon: <FiSmile size={24} />, label: 'Comedy', id: 'comedy' },
-            ].map((item) => (
+            />
+            <span className="ml-3 text-xl font-bold text-[#FFD700]">BSS Entertainment</span>
+          </div>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex space-x-8">
+            {navItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setActiveCategory(item.id)}
-                className={`flex items-center w-full p-4 ${activeCategory === item.id ? 'bg-[#FFD700]/10 text-[#FFD700]' : 'hover:bg-[#FFD700]/10 text-gray-300'} transition-colors`}
+                onClick={() => scrollToSection(item.id)}
+                className={`px-3 py-2 font-medium ${activeSection === item.id ? 'text-[#FFD700] border-b-2 border-[#FFD700]' : 'text-gray-300 hover:text-[#FFD700]'} cursor-pointer`}
               >
-                <span className="flex-shrink-0">{item.icon}</span>
-                <span className="ml-4 hidden md:block">{item.label}</span>
+                {item.label}
               </button>
             ))}
           </nav>
-        </div>
-      )}
 
-      <div className={`flex-1 ${!isMobile ? 'ml-16 md:ml-64' : 'pb-16'}`}>
-        <header className="bg-[#2A2A2A] bg-opacity-95 p-4 sticky top-0 z-10 flex justify-between items-center shadow-md">
-          <div className="relative w-full max-w-xl">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search for music, movies, shows..."
-              className="w-full bg-[#3A3A3A] text-white rounded-full py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-[#FFD700] transition-all"
-            />
-          </div>
-          <div className="flex items-center ml-4 gap-3">
-            <button
-              onClick={() => setShowContestantDrawer(true)}
-              className="bg-[#FFD700] text-[#1A1A1A] px-4 py-2 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105 flex items-center"
-            >
-              <FiAward className="mr-2" />
-              <span className="hidden md:inline">Vote</span>
-            </button>
+          <div className="flex items-center space-x-4">
             {user ? (
               <div className="relative group">
-                <div className="w-10 h-10 rounded-full bg-[#FFD700] flex items-center justify-center overflow-hidden">
+                <div className="w-10 h-10 rounded-full bg-[#FFD700] flex items-center justify-center overflow-hidden cursor-pointer">
                   {user.photoURL ? (
                     <Image
                       src={user.photoURL}
@@ -805,7 +965,7 @@ function EntertainmentPlatform() {
                   </div>
                   <button
                     onClick={handleSignOut}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#FFD700]/10 hover:text-[#FFD700] flex items-center"
+                    className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#FFD700]/10 hover:text-[#FFD700] flex items-center cursor-pointer"
                   >
                     <FiLogOut className="mr-2" />
                     Sign Out
@@ -813,290 +973,491 @@ function EntertainmentPlatform() {
                 </div>
               </div>
             ) : (
-              <></>
+              <button
+                onClick={() => setShowAdminLogin(true)}
+                className="hidden md:block bg-[#FFD700] text-[#1A1A1A] px-4 py-2 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105 cursor-pointer"
+              >
+                Admin Login
+              </button>
             )}
-          </div>
-        </header>
 
-        {showContestantDrawer && (
-          <div className="fixed inset-0 z-30 transition-opacity duration-300">
-            <div
-              className="absolute inset-0 bg-black bg-opacity-50"
-              onClick={() => setShowContestantDrawer(false)}
-            ></div>
-            <div className={`absolute ${isMobile ? 'bottom-0 left-0 right-0 h-3/4' : 'right-0 top-0 h-full w-full md:w-96'} bg-[#2A2A2A] shadow-2xl overflow-y-auto transition-transform duration-300 ${isMobile ? 'translate-y-0' : 'translate-x-0'}`}>
-              <div className="p-4 flex justify-between items-center border-b border-[#FFD700]/20">
-                <h2 className="text-xl font-bold text-[#FFD700]">Vote for Contestants</h2>
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="md:hidden text-white focus:outline-none cursor-pointer"
+            >
+              <FiMenu size={24} />
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Navigation */}
+        {showMobileMenu && (
+          <div className="md:hidden bg-[#2A2A2A] px-4 py-2">
+            <div className="flex flex-col space-y-2">
+              {navItems.map((item) => (
                 <button
-                  onClick={() => setShowContestantDrawer(false)}
-                  className="text-gray-400 hover:text-[#FFD700]"
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className={`px-3 py-2 text-left font-medium ${activeSection === item.id ? 'text-[#FFD700]' : 'text-gray-300 hover:text-[#FFD700]'} cursor-pointer`}
                 >
-                  <FiX size={24} />
+                  {item.label}
+                </button>
+              ))}
+              {!user && (
+                <button
+                  onClick={() => setShowAdminLogin(true)}
+                  className="px-3 py-2 text-left font-medium text-gray-300 hover:text-[#FFD700] cursor-pointer"
+                >
+                  Admin Login
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* Admin Login Modal */}
+      {showAdminLogin && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+          <div className="bg-white text-[#1A1A1A] p-8 rounded-xl max-w-md w-full shadow-2xl">
+            <h2 className="text-2xl font-bold mb-6 text-[#FFD700]">Admin Login</h2>
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium mb-2">Username</label>
+                <input
+                  type="text"
+                  value={adminCredentials.username}
+                  onChange={(e) => setAdminCredentials({ ...adminCredentials, username: e.target.value })}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700] focus:outline-none cursor-text"
+                  placeholder="Enter admin username"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Password</label>
+                <input
+                  type="password"
+                  value={adminCredentials.password}
+                  onChange={(e) => setAdminCredentials({ ...adminCredentials, password: e.target.value })}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700] focus:outline-none cursor-text"
+                  placeholder="Enter password"
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowAdminLogin(false)}
+                  className="px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAdminLogin}
+                  className="px-5 py-2 bg-[#FFD700] text-[#1A1A1A] rounded-lg flex items-center hover:bg-[#E6C200] transition-transform transform hover:scale-105 cursor-pointer"
+                >
+                  <FiLogIn className="mr-2" />
+                  Login
                 </button>
               </div>
-              <div className="p-4 space-y-4">
-                {contestants.map((contestant) => (
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main>
+        {/* Hero Section */}
+        <section id="home" className="relative min-h-[80vh] flex items-center justify-center">
+          <div className="absolute inset-0 z-0">
+            <Image
+              src={dummyImages.landingBg}
+              alt="Entertainment Platform"
+              layout="fill"
+              objectFit="cover"
+              className="opacity-50"
+              unoptimized
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A] via-transparent to-transparent"></div>
+          </div>
+
+          <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
+            <h1 className="text-4xl md:text-6xl font-extrabold mb-6">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-[#FFD700]">
+                Welcome to BSS Entertainment
+              </span>
+            </h1>
+            <p className="text-xl md:text-2xl mb-8 text-gray-300">
+              Your premier destination for music, movies, comedy shows, and exciting contests
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <button
+                onClick={() => scrollToSection('events')}
+                className="bg-[#FFD700] text-[#1A1A1A] px-8 py-3 rounded-full font-semibold text-lg hover:bg-[#E6C200] transition-transform transform hover:scale-105 cursor-pointer"
+              >
+                View Events
+              </button>
+              <button
+                onClick={() => scrollToSection('contestants')}
+                className="bg-transparent border-2 border-[#FFD700] text-[#FFD700] px-8 py-3 rounded-full font-semibold text-lg hover:bg-[#FFD700]/10 transition-transform transform hover:scale-105 cursor-pointer"
+              >
+                Vote Now
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* About Section */}
+        <section id="about" className="py-16 bg-[#2A2A2A]">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center text-[#FFD700]">
+              About BSS Entertainment
+            </h2>
+
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <div className="md:w-1/2">
+                <div className="rounded-xl overflow-hidden shadow-2xl cursor-pointer">
+                  <Image
+                    src={dummyImages.about}
+                    alt="About BSS Entertainment"
+                    width={600}
+                    height={400}
+                    className="w-full h-auto object-cover"
+                    unoptimized
+                  />
+                </div>
+              </div>
+
+              <div className="md:w-1/2">
+                <h3 className="text-2xl font-bold mb-4 text-white">Our Story</h3>
+                <p className="text-gray-300 mb-6">
+                  Founded in 2010, BSS Entertainment has grown to become one of the leading entertainment companies in the region.
+                  We specialize in organizing world-class music festivals, comedy shows, movie premieres, and talent competitions.
+                </p>
+                <p className="text-gray-300 mb-6">
+                  Our mission is to discover and promote exceptional talent while providing unforgettable entertainment experiences
+                  for our audiences. With over 100 successful events under our belt, we continue to push boundaries and set new
+                  standards in the entertainment industry.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-[#1A1A1A] p-4 rounded-lg cursor-pointer hover:bg-[#FFD700]/10 transition-colors">
+                    <h4 className="text-[#FFD700] font-bold mb-2">100+ Events</h4>
+                    <p className="text-gray-300 text-sm">Successfully organized</p>
+                  </div>
+                  <div className="bg-[#1A1A1A] p-4 rounded-lg cursor-pointer hover:bg-[#FFD700]/10 transition-colors">
+                    <h4 className="text-[#FFD700] font-bold mb-2">50K+ Fans</h4>
+                    <p className="text-gray-300 text-sm">Engaged community</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Services Section */}
+        <section id="services" className="py-16 bg-[#1A1A1A]">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center text-[#FFD700]">
+              Our Services
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                {
+                  title: "Event Production",
+                  description: "Full-service event production for concerts, festivals, and shows.",
+                  icon: <FiMusic size={40} className="text-[#FFD700] mb-4" />
+                },
+                {
+                  title: "Talent Management",
+                  description: "Discover, develop, and promote exceptional talent across various genres.",
+                  icon: <FiUser size={40} className="text-[#FFD700] mb-4" />
+                },
+                {
+                  title: "Content Creation",
+                  description: "High-quality video and audio production for artists and brands.",
+                  icon: <FiFilm size={40} className="text-[#FFD700] mb-4" />
+                },
+                {
+                  title: "Marketing & Promotion",
+                  description: "Comprehensive marketing strategies to maximize your event's reach.",
+                  icon: <FiMic size={40} className="text-[#FFD700] mb-4" />
+                },
+                {
+                  title: "Sponsorship Acquisition",
+                  description: "Connecting brands with relevant entertainment opportunities.",
+                  icon: <FiAward size={40} className="text-[#FFD700] mb-4" />
+                },
+                {
+                  title: "Ticketing Solutions",
+                  description: "End-to-end ticketing services for seamless event access.",
+                  icon: <FiCalendar size={40} className="text-[#FFD700] mb-4" />
+                }
+              ].map((service, index) => (
+                <div key={index} className="bg-[#2A2A2A] p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+                  <div className="text-center">
+                    {service.icon}
+                    <h3 className="text-xl font-bold mb-2 text-white">{service.title}</h3>
+                    <p className="text-gray-300">{service.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Events Section */}
+        <section id="events" className="py-16 bg-[#2A2A2A]">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center text-[#FFD700]">
+              Upcoming Events
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {events.map((event) => (
+                <div key={event.id} className="bg-[#1A1A1A] rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+                  <div className="relative h-48">
+                    <Image
+                      src={event.image}
+                      alt={event.title}
+                      layout="fill"
+                      objectFit="cover"
+                      unoptimized
+                    />
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold mb-2 text-white">{event.title}</h3>
+                    <div className="flex items-center text-gray-300 mb-2">
+                      <FiCalendar className="mr-2 text-[#FFD700]" />
+                      <span>{event.date}</span>
+                    </div>
+                    <div className="flex items-center text-gray-300 mb-4">
+                      <FiMapPin className="mr-2 text-[#FFD700]" />
+                      <span>{event.location}</span>
+                    </div>
+                    <button className="w-full bg-[#FFD700] text-[#1A1A1A] py-2 rounded-full font-medium hover:bg-[#E6C200] transition-colors cursor-pointer">
+                      Get Tickets
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Contestants Section */}
+        <section id="contestants" className="py-16 bg-[#1A1A1A]">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center text-[#FFD700]">
+              Vote for Contestants
+            </h2>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+              {contestants.map((contestant) => (
+                <div key={contestant.id} className="text-center">
                   <div
-                    key={contestant.id}
-                    className="flex items-center p-3 bg-[#3A3A3A] rounded-lg hover:bg-[#FFD700]/10 transition-colors cursor-pointer"
+                    className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mx-auto mb-3 border-2 border-[#FFD700] cursor-pointer hover:shadow-lg transition-shadow"
                     onClick={() => {
                       setSelectedContestant(contestant);
                       setShowVoteDialog(true);
                     }}
                   >
-                    <div className="w-12 h-12 rounded-full overflow-hidden mr-4 border-2 border-[#FFD700]">
-                      <Image
-                        src={contestant.image}
-                        alt={contestant.name}
-                        width={48}
-                        height={48}
-                        className="w-full h-full object-cover"
-                        unoptimized
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium text-white">{contestant.name}</h3>
-                      <p className="text-sm text-gray-400 capitalize">{contestant.category}</p>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedContestant(contestant);
-                        setShowVoteDialog(true);
-                      }}
-                      className="bg-[#FFD700] text-[#1A1A1A] px-3 py-1 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105"
-                    >
-                      Vote
-                    </button>
+                    <Image
+                      src={contestant.image}
+                      alt={contestant.name}
+                      width={96}
+                      height={96}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showVoteDialog && selectedContestant && (
-          <div className="fixed inset-0 bg-black bg-opacity-70 z-40 flex items-center justify-center p-4 transition-opacity duration-300">
-            <div className="bg-[#2A2A2A] rounded-xl max-w-md w-full p-6 shadow-2xl">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-xl font-bold text-[#FFD700]">{selectedContestant.name}</h2>
-                <button
-                  onClick={() => setShowVoteDialog(false)}
-                  className="text-gray-400 hover:text-[#FFD700]"
-                >
-                  <FiX size={24} />
-                </button>
-              </div>
-              <div className="flex mb-4">
-                <div className="w-24 h-24 rounded-full overflow-hidden mr-4 border-2 border-[#FFD700]">
-                  <Image
-                    src={selectedContestant.image}
-                    alt={selectedContestant.name}
-                    width={96}
-                    height={96}
-                    className="w-full h-full object-cover"
-                    unoptimized
-                  />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-300 mb-2 capitalize">
-                    Category: {selectedContestant.category}
-                  </p>
-                  <p className="text-sm text-gray-300">Votes: {selectedContestant.votes}</p>
-                </div>
-              </div>
-              <div className="mb-6">
-                <h3 className="font-medium mb-2 text-white">About</h3>
-                <p className="text-gray-300 text-sm">{selectedContestant.description}</p>
-              </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowVoteDialog(false)}
-                  className="px-4 py-2 border border-gray-600 rounded-full hover:bg-[#3A3A3A] transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleVotePayment}
-                  className="px-4 py-2 bg-[#FFD700] text-[#1A1A1A] rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105"
-                >
-                  Vote Now (₦100)
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <main className="p-6">
-          {categories[activeCategory as keyof typeof categories]?.items.find((item) => item.featured) && (
-            <div
-              className="relative rounded-xl overflow-hidden mb-8 h-64 md:h-96 cursor-pointer shadow-xl"
-              onClick={() => {
-                setSelectedContent(
-                  categories[activeCategory as keyof typeof categories].items.find((item) => item.featured) || null
-                );
-                setShowVideoModal(true);
-              }}
-            >
-              <Image
-                src={categories[activeCategory as keyof typeof categories].items.find((item) => item.featured)?.image || ''}
-                alt="Featured"
-                layout="fill"
-                objectFit="cover"
-                className="transform hover:scale-105 transition-transform duration-500"
-                unoptimized
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A]/80 via-transparent to-transparent"></div>
-              <div className="absolute bottom-0 left-0 p-6 md:p-10">
-                <h2 className="text-2xl md:text-4xl font-extrabold mb-2 text-[#FFD700]">
-                  {categories[activeCategory as keyof typeof categories].items.find((item) => item.featured)?.title}
-                </h2>
-                <p className="text-gray-300 mb-4 max-w-lg">
-                  Experience the hottest event this season with premium entertainment and exclusive performances.
-                </p>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedContent(
-                      categories[activeCategory as keyof typeof categories].items.find((item) => item.featured) || null
-                    );
-                    setShowVideoModal(true);
-                  }}
-                  className="bg-[#FFD700] text-[#1A1A1A] px-6 py-2 rounded-full font-semibold flex items-center hover:bg-[#E6C200] transition-transform transform hover:scale-105"
-                >
-                  Play Trailer
-                  <FiPlayCircle className="ml-2" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          <section>
-            <h2 className="text-2xl md:text-3xl font-extrabold mb-4 text-[#FFD700]">
-              {categories[activeCategory as keyof typeof categories]?.title}
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {categories[activeCategory as keyof typeof categories]?.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="group relative rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-[#FFD700]/20"
-                  onClick={() => {
-                    setSelectedContent(item);
-                    setShowVideoModal(true);
-                  }}
-                >
-                  <Image
-                    src={item.image}
-                    alt={item.title}
-                    width={300}
-                    height={208}
-                    className="w-full h-40 md:h-52 object-cover transform group-hover:scale-105 transition-transform duration-300"
-                    unoptimized
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A]/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
-                    <h3 className="font-semibold text-white">{item.title}</h3>
-                  </div>
+                  <h3 className="font-medium text-white">{contestant.name}</h3>
+                  <p className="text-sm text-gray-400 capitalize">{contestant.category}</p>
+                  <button
+                    onClick={() => {
+                      setSelectedContestant(contestant);
+                      setShowVoteDialog(true);
+                    }}
+                    className="mt-2 text-xs bg-[#FFD700] text-[#1A1A1A] px-3 py-1 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105 cursor-pointer"
+                  >
+                    Vote ({contestant.votes})
+                  </button>
                 </div>
               ))}
             </div>
-          </section>
+          </div>
+        </section>
 
-          {activeCategory === 'trending' && (
-            <>
-              <section className="mt-12">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl md:text-3xl font-extrabold text-[#FFD700]">Popular Contestants</h2>
+        {/* Contact Section */}
+        <section id="contact" className="py-16 bg-[#2A2A2A]">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center text-[#FFD700]">
+              Contact Us
+            </h2>
+
+            <div className="flex flex-col md:flex-row gap-8">
+              <div className="md:w-1/2 bg-[#1A1A1A] p-6 rounded-xl shadow-lg">
+                <h3 className="text-2xl font-bold mb-6 text-white">Get In Touch</h3>
+
+                <div className="space-y-4">
+                  <div className="flex items-start">
+                    <div className="bg-[#FFD700] p-2 rounded-full mr-4">
+                      <FiMapPin className="text-[#1A1A1A]" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white">Address</h4>
+                      <p className="text-gray-300">{companyLocation}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start">
+                    <div className="bg-[#FFD700] p-2 rounded-full mr-4">
+                      <FiMail className="text-[#1A1A1A]" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white">Email</h4>
+                      <p className="text-gray-300">bssentertainmentindustry@gmail.com</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start">
+                    <div className="bg-[#FFD700] p-2 rounded-full mr-4">
+                      <FiPhone className="text-[#1A1A1A]" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white">Phone</h4>
+                      <p className="text-gray-300">+234 707 597 0102</p>
+                    </div>
+                  </div>
+                </div>
+
+                <form className="mt-8 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-300">Your Name</label>
+                    <input
+                      type="text"
+                      className="w-full bg-[#2A2A2A] border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#FFD700] cursor-text"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-300">Your Email</label>
+                    <input
+                      type="email"
+                      className="w-full bg-[#2A2A2A] border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#FFD700] cursor-text"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-300">Message</label>
+                    <textarea
+                      rows={4}
+                      className="w-full bg-[#2A2A2A] border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#FFD700] cursor-text"
+                    ></textarea>
+                  </div>
+
                   <button
-                    onClick={() => setShowContestantDrawer(true)}
-                    className="text-[#FFD700] hover:underline"
+                    type="submit"
+                    className="w-full bg-[#FFD700] text-[#1A1A1A] py-3 rounded-full font-bold hover:bg-[#E6C200] transition-colors cursor-pointer"
                   >
-                    View All
+                    Send Message
                   </button>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {contestants.slice(0, 6).map((contestant) => (
-                    <div key={contestant.id} className="text-center">
-                      <div
-                        className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mx-auto mb-2 border-2 border-[#FFD700] cursor-pointer hover:shadow-lg transition-shadow"
-                        onClick={() => {
-                          setSelectedContestant(contestant);
-                          setShowVoteDialog(true);
-                        }}
-                      >
-                        <Image
-                          src={contestant.image}
-                          alt={contestant.name}
-                          width={96}
-                          height={96}
-                          className="w-full h-full object-cover"
-                          unoptimized
-                        />
-                      </div>
-                      <h3 className="font-medium text-white">{contestant.name}</h3>
-                      <p className="text-sm text-gray-400 capitalize">{contestant.category}</p>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedContestant(contestant);
-                          setShowVoteDialog(true);
-                        }}
-                        className="mt-2 text-xs bg-[#FFD700] text-[#1A1A1A] px-3 py-1 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105"
-                      >
-                        Vote ({contestant.votes})
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </section>
+                </form>
+              </div>
 
-              <section className="mt-12">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl md:text-3xl font-extrabold text-[#FFD700]">Upcoming Events</h2>
-                  <button className="text-[#FFD700] hover:underline">View All</button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {events.map((event) => (
-                    <div
-                      key={event.id}
-                      className="bg-[#2A2A2A] rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow border border-[#FFD700]/20"
-                    >
-                      <Image
-                        src={event.image}
-                        alt={event.title}
-                        width={300}
-                        height={160}
-                        className="w-full h-40 object-cover transform hover:scale-105 transition-transform duration-300"
-                        unoptimized
-                      />
-                      <div className="p-4">
-                        <h3 className="font-bold text-lg mb-2 text-white">{event.title}</h3>
-                        <div className="flex items-center text-gray-300 mb-1">
-                          <FiCalendar className="mr-2" />
-                          <span>{event.date}</span>
-                        </div>
-                        <div className="flex items-center text-gray-300">
-                          <FiMapPin className="mr-2" />
-                          <span>{event.location}</span>
-                        </div>
-                        <button className="mt-4 w-full bg-[#FFD700] text-[#1A1A1A] py-2 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105">
-                          Get Tickets
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </>
-          )}
-        </main>
-      </div>
+              <div className="md:w-1/2 bg-[#1A1A1A] rounded-xl overflow-hidden shadow-lg">
+                <Map location={companyLocation} />
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
 
+      {/* Footer */}
+      <footer className="bg-[#1A1A1A] py-8 border-t border-[#FFD700]/20">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center mb-6 md:mb-0">
+              <Image
+                src="/images/logo.png"
+                alt="BSS Logo"
+                width={40}
+                height={40}
+                className="w-10 h-10 cursor-pointer"
+                onClick={() => scrollToSection('home')}
+                unoptimized
+              />
+              <span className="ml-3 text-xl font-bold text-[#FFD700] cursor-pointer" onClick={() => scrollToSection('home')}>
+                BSS Entertainment
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-8 pt-8 border-t border-[#2A2A2A] text-center text-gray-400">
+            <p>&copy; {new Date().getFullYear()} BSS Entertainment. All rights reserved.</p>
+            <p className="mt-2">Powered by <span className="text-[#FFD700]">Sapok</span></p>
+          </div>
+        </div>
+      </footer>
+
+      {/* Vote Dialog */}
+      {showVoteDialog && selectedContestant && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-40 flex items-center justify-center p-4">
+          <div className="bg-[#2A2A2A] rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-xl font-bold text-[#FFD700]">{selectedContestant.name}</h2>
+              <button
+                onClick={() => setShowVoteDialog(false)}
+                className="text-gray-400 hover:text-[#FFD700] cursor-pointer"
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+            <div className="flex mb-4">
+              <div className="w-24 h-24 rounded-full overflow-hidden mr-4 border-2 border-[#FFD700]">
+                <Image
+                  src={selectedContestant.image}
+                  alt={selectedContestant.name}
+                  width={96}
+                  height={96}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
+              </div>
+              <div>
+                <p className="text-sm text-gray-300 mb-2 capitalize">
+                  Category: {selectedContestant.category}
+                </p>
+                <p className="text-sm text-gray-300">Votes: {selectedContestant.votes}</p>
+              </div>
+            </div>
+            <div className="mb-6">
+              <h3 className="font-medium mb-2 text-white">About</h3>
+              <p className="text-gray-300 text-sm">{selectedContestant.description}</p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowVoteDialog(false)}
+                className="px-4 py-2 border border-gray-600 rounded-full hover:bg-[#3A3A3A] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleVotePayment}
+                className="px-4 py-2 bg-[#FFD700] text-[#1A1A1A] rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105 cursor-pointer"
+              >
+                Vote Now (₦100)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Video Modal */}
       {showVideoModal && selectedContent && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 z-30 flex items-center justify-center p-4 transition-opacity duration-300">
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-30 flex items-center justify-center p-4">
           <div className="relative w-full max-w-4xl">
             <button
               onClick={() => setShowVideoModal(false)}
-              className="absolute -top-10 right-0 text-white hover:text-[#FFD700]"
+              className="absolute -top-10 right-0 text-white hover:text-[#FFD700] cursor-pointer"
             >
               <FiX size={24} />
             </button>
@@ -1113,7 +1474,7 @@ function EntertainmentPlatform() {
             <div className="mt-4">
               <h3 className="text-xl font-bold text-[#FFD700]">{selectedContent.title}</h3>
               <div className="flex gap-4 mt-4">
-                <button className="bg-[#FFD700] text-[#1A1A1A] px-6 py-2 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105">
+                <button className="bg-[#FFD700] text-[#1A1A1A] px-6 py-2 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105 cursor-pointer">
                   Add to Favorites
                 </button>
               </div>
@@ -1125,4 +1486,4 @@ function EntertainmentPlatform() {
   );
 }
 
-export default dynamic(() => Promise.resolve(EntertainmentPlatform), { ssr: false });
+export default dynamic(() => Promise.resolve(EntertainmentWebsite), { ssr: false });
