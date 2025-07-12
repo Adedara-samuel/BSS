@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiHome, FiMusic, FiFilm, FiMic, FiSmile, FiUser, FiSearch, FiChevronRight, FiX, FiCalendar, FiMapPin, FiPlus, FiEdit2, FiTrash2, FiLogIn, FiPlayCircle, FiAward, FiLogOut, FiMail, FiPhone, FiInfo, FiMenu, FiDollarSign, FiUsers, FiBarChart2, FiCreditCard, FiEyeOff, FiEye } from 'react-icons/fi';
+import { FiHome, FiMusic, FiFilm, FiMic, FiSmile, FiUser, FiSearch, FiChevronRight, FiX, FiCalendar, FiMapPin, FiPlus, FiEdit2, FiTrash2, FiLogIn, FiPlayCircle, FiAward, FiLogOut, FiMail, FiPhone, FiInfo, FiMenu, FiDollarSign, FiUsers, FiBarChart2, FiCreditCard, FiEyeOff, FiEye, FiChevronLeft } from 'react-icons/fi';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import Image from 'next/image';
@@ -23,23 +24,39 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
+type Contest = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  isActive: boolean;
+  contestants: Contestant[];
+  createdAt: Date;
+};
+
+type Contestant = {
+  id: string;
+  name: string;
+  bio: string;
+  image: string;
+  votes: number;
+  amountGained: number;
+  comments: Comment[];
+  category?: string;
+};
+
+type Comment = {
+  id: string;
+  text: string;
+  createdAt: Date;
+};
+
 type ContentItem = {
   id: number;
   title: string;
   type: string;
   image: string;
   featured?: boolean;
-};
-
-type Contestant = {
-  id: number;
-  name: string;
-  category: string;
-  bio: string;
-  image: string;
-  votes: number;
-  amountGained: number;
-  description: string;
 };
 
 type Event = {
@@ -78,7 +95,6 @@ const dummyImages = {
   events: [
     'https://images.unsplash.com/photo-1540575467063-178a50c2df87?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
     'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
-    'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
   ],
   about: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
 };
@@ -107,10 +123,12 @@ function EntertainmentWebsite() {
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [contests, setContests] = useState<Contest[]>([]);
   const [contestants, setContestants] = useState<Contestant[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [showVoteDialog, setShowVoteDialog] = useState(false);
   const [selectedContestant, setSelectedContestant] = useState<Contestant | null>(null);
+  const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -119,12 +137,16 @@ function EntertainmentWebsite() {
     password: '',
   });
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [newContest, setNewContest] = useState({
+    title: '',
+    description: '',
+    category: '',
+    isActive: true
+  });
   const [newContestant, setNewContestant] = useState({
     name: '',
-    category: 'music',
     bio: '',
     image: '',
-    description: '',
   });
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -132,60 +154,115 @@ function EntertainmentWebsite() {
     location: '',
     image: '',
   });
+  const [editingContest, setEditingContest] = useState<Contest | null>(null);
   const [editingContestant, setEditingContestant] = useState<Contestant | null>(null);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [viewingContest, setViewingContest] = useState<Contest | null>(null);
+  const [PaystackButton, setPaystackButton] = useState<any>(null);
 
   const companyLocation = "Ikerre 361101, Ekiti, Nigeria";
 
-  type PaystackConfig = {
-    reference: string;
-    email: string;
-    amount: number;
-    publicKey: string;
-    [key: string]: unknown;
-  };
-
-  type PaystackHandlers = {
-    onSuccess: (reference: PaystackReference) => void;
-    onClose: () => void;
-  };
-
-  const [PaystackButton, setPaystackButton] = useState<((config: PaystackConfig) => (handlers: PaystackHandlers) => void) | null>(null);
-
   // Check for mobile view
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const handleResize = () => {
-        setIsMobile(window.innerWidth < 768);
-      };
-      handleResize();
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Load Paystack dynamically
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      import('react-paystack').then((mod) => {
-        setPaystackButton(() => mod.usePaystackPayment);
-      });
-    }
+    import('react-paystack').then((mod) => {
+      setPaystackButton(() => mod.usePaystackPayment);
+    });
   }, []);
 
   // Initialize dummy data
   useEffect(() => {
+    // Sample contest data
+    const sampleContestants: Contestant[] = [
+      {
+        id: '1',
+        name: 'Dr. John Doe',
+        bio: 'Senior Lecturer with 10 years experience',
+        image: dummyImages.contestants[0],
+        votes: 125,
+        amountGained: 12500,
+        comments: [
+          { id: '1', text: 'Great lecturer, very knowledgeable', createdAt: new Date() },
+          { id: '2', text: 'Always available for students', createdAt: new Date() }
+        ]
+      },
+      {
+        id: '2',
+        name: 'Dr. Jane Smith',
+        bio: 'Associate Professor specializing in Media Studies',
+        image: dummyImages.contestants[1],
+        votes: 98,
+        amountGained: 9800,
+        comments: [
+          { id: '3', text: 'Excellent teaching methodology', createdAt: new Date() }
+        ]
+      }
+    ];
+
+    const sampleContests: Contest[] = [
+      {
+        id: '1',
+        title: 'BSS Best Lecturer Award',
+        description: 'Vote for your favorite lecturer in the Mass Communication department',
+        category: 'BOUESTI MASS COM',
+        isActive: true,
+        contestants: sampleContestants,
+        createdAt: new Date()
+      },
+      {
+        id: '2',
+        title: 'Best Department Award',
+        description: 'Vote for the best performing department this semester',
+        category: 'University Wide',
+        isActive: true,
+        contestants: [
+          {
+            id: '3',
+            name: 'Computer Science',
+            bio: 'Department of Computer Science',
+            image: 'https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
+            votes: 210,
+            amountGained: 21000,
+            comments: []
+          },
+          {
+            id: '4',
+            name: 'Mass Communication',
+            bio: 'Department of Mass Communication',
+            image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
+            votes: 185,
+            amountGained: 18500,
+            comments: []
+          }
+        ],
+        createdAt: new Date()
+      }
+    ];
+
+    setContests(sampleContests);
+
     setContestants(
       dummyImages.contestants.map((img, index) => ({
-        id: index + 1,
+        id: (index + 1).toString(),
         name: `Contestant ${index + 1}`,
-        category: ['music', 'comedy', 'movie', 'talk'][index % 4],
         bio: ['DJ and producer', 'Stand-up comedian', 'Actor', 'Talk show host'][index % 4],
-        description: `This is a detailed description about Contestant ${index + 1}. They are participating in the ${['music', 'comedy', 'movie', 'talk'][index % 4]} category. Vote for them to support their talent and help them win the competition.`,
         image: img,
         votes: Math.floor(Math.random() * 1000),
         amountGained: Math.floor(Math.random() * 100000),
+        comments: [],
+        category: ['music', 'comedy', 'movie', 'talk'][index % 4],
       }))
     );
 
@@ -209,7 +286,7 @@ function EntertainmentWebsite() {
         title: 'Film Premiere',
         date: 'August 5, 2025',
         location: 'Hollywood Cinema',
-        image: dummyImages.events[2],
+        image: dummyImages.events[0],
       },
     ]);
   }, []);
@@ -217,7 +294,7 @@ function EntertainmentWebsite() {
   // Track scroll position to update active section
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ['home', 'about', 'services', 'events', 'contestants', 'contact'];
+      const sections = ['home', 'about', 'services', 'events', 'contestants', 'contests', 'contact'];
       const scrollPosition = window.scrollY + 100;
 
       for (const section of sections) {
@@ -242,35 +319,70 @@ function EntertainmentWebsite() {
   const config = {
     reference: new Date().getTime().toString(),
     email: user?.email || 'user@example.com',
-    amount: 10000,
-    publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || 'pk_live_53b845fbac1a719357828d7b418952de27c1ec84',
-  };
-
-  type PaystackReference = {
-    reference: string;
-    [key: string]: unknown;
-  };
-
-  const onSuccess = (reference: PaystackReference) => {
-    if (selectedContestant) {
-      setContestants(
-        contestants.map((c) =>
-          c.id === selectedContestant.id ? { ...c, votes: c.votes + 1, amountGained: c.amountGained + 100 } : c
-        )
-      );
-    }
-    setShowVoteDialog(false);
-    alert(`Vote successful! Reference: ${reference.reference}`);
-  };
-
-  const onClose = () => {
-    console.log('Payment closed');
+    amount: 10000, // 100 Naira in kobo
+    publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || 'pk_test_your_public_key',
   };
 
   const handleVotePayment = () => {
-    if (PaystackButton) {
+    if (PaystackButton && selectedContestant && selectedContest) {
       const initializePayment = PaystackButton(config);
-      initializePayment({ onSuccess, onClose });
+      initializePayment({
+        onSuccess: (reference: any) => {
+          // Update votes and amount gained
+          const updatedContests = contests.map(contest => {
+            if (contest.id === selectedContest.id) {
+              const updatedContestants = contest.contestants.map(c => {
+                if (c.id === selectedContestant.id) {
+                  return {
+                    ...c,
+                    votes: c.votes + 1,
+                    amountGained: c.amountGained + 100
+                  };
+                }
+                return c;
+              });
+              return { ...contest, contestants: updatedContestants };
+            }
+            return contest;
+          });
+
+          setContests(updatedContests);
+
+          // Add comment if provided
+          if (commentText.trim()) {
+            const newComment: Comment = {
+              id: Date.now().toString(),
+              text: commentText,
+              createdAt: new Date()
+            };
+
+            const updatedContestsWithComment = updatedContests.map(contest => {
+              if (contest.id === selectedContest.id) {
+                const updatedContestants = contest.contestants.map(c => {
+                  if (c.id === selectedContestant.id) {
+                    return {
+                      ...c,
+                      comments: [...c.comments, newComment]
+                    };
+                  }
+                  return c;
+                });
+                return { ...contest, contestants: updatedContestants };
+              }
+              return contest;
+            });
+
+            setContests(updatedContestsWithComment);
+            setCommentText('');
+          }
+
+          setShowVoteDialog(false);
+          alert(`Vote successful! Reference: ${reference.reference}`);
+        },
+        onClose: () => {
+          console.log('Payment closed');
+        }
+      });
     } else {
       console.error('Paystack not loaded yet');
       alert('Payment system is not ready. Please try again later.');
@@ -305,41 +417,109 @@ function EntertainmentWebsite() {
     }
   };
 
-  const addContestant = () => {
-    if (newContestant.name && newContestant.image) {
-      const newId = contestants.length > 0 ? Math.max(...contestants.map(c => c.id)) + 1 : 1;
-      setContestants([
-        ...contestants,
+  const addContest = () => {
+    if (newContest.title && newContest.category) {
+      const newId = Date.now().toString();
+      setContests([
+        ...contests,
         {
           id: newId,
-          ...newContestant,
-          votes: 0,
-          amountGained: 0,
-        },
+          title: newContest.title,
+          description: newContest.description,
+          category: newContest.category,
+          isActive: newContest.isActive,
+          contestants: [],
+          createdAt: new Date()
+        }
       ]);
+      setNewContest({
+        title: '',
+        description: '',
+        category: '',
+        isActive: true
+      });
+    }
+  };
+
+  const updateContest = () => {
+    if (editingContest) {
+      setContests(
+        contests.map(c =>
+          c.id === editingContest.id ? editingContest : c
+        )
+      );
+      setEditingContest(null);
+    }
+  };
+
+  const deleteContest = (id: string) => {
+    setContests(contests.filter(c => c.id !== id));
+  };
+
+  const addContestant = () => {
+    if (newContestant.name && newContestant.image && selectedContest) {
+      const newId = Date.now().toString();
+      const updatedContests = contests.map(contest => {
+        if (contest.id === selectedContest.id) {
+          return {
+            ...contest,
+            contestants: [
+              ...contest.contestants,
+              {
+                id: newId,
+                name: newContestant.name,
+                bio: newContestant.bio,
+                image: newContestant.image,
+                votes: 0,
+                amountGained: 0,
+                comments: []
+              }
+            ]
+          };
+        }
+        return contest;
+      });
+
+      setContests(updatedContests);
       setNewContestant({
         name: '',
-        category: 'music',
         bio: '',
         image: '',
-        description: '',
       });
     }
   };
 
   const updateContestant = () => {
-    if (editingContestant) {
-      setContestants(
-        contestants.map(c =>
-          c.id === editingContestant.id ? editingContestant : c
-        )
-      );
+    if (editingContestant && selectedContest) {
+      const updatedContests = contests.map(contest => {
+        if (contest.id === selectedContest.id) {
+          const updatedContestants = contest.contestants.map(c =>
+            c.id === editingContestant.id ? editingContestant : c
+          );
+          return { ...contest, contestants: updatedContestants };
+        }
+        return contest;
+      });
+
+      setContests(updatedContests);
       setEditingContestant(null);
     }
   };
 
-  const deleteContestant = (id: number) => {
-    setContestants(contestants.filter(c => c.id !== id));
+  const deleteContestant = (id: string) => {
+    if (!selectedContest) return;
+
+    const updatedContests = contests.map(contest => {
+      if (contest.id === selectedContest.id) {
+        return {
+          ...contest,
+          contestants: contest.contestants.filter(c => c.id !== id)
+        };
+      }
+      return contest;
+    });
+
+    setContests(updatedContests);
   };
 
   const addEvent = () => {
@@ -377,6 +557,15 @@ function EntertainmentWebsite() {
     setEvents(events.filter(e => e.id !== id));
   };
 
+  const toggleContestStatus = (contestId: string) => {
+    setContests(contests.map(contest => {
+      if (contest.id === contestId) {
+        return { ...contest, isActive: !contest.isActive };
+      }
+      return contest;
+    }));
+  };
+
   const categories = {
     trending: {
       title: 'Trending Now',
@@ -409,6 +598,7 @@ function EntertainmentWebsite() {
     { id: 'services', label: 'Services' },
     { id: 'events', label: 'Events' },
     { id: 'contestants', label: 'Contestants' },
+    { id: 'contests', label: 'Contests' },
     { id: 'contact', label: 'Contact' },
   ];
 
@@ -420,6 +610,7 @@ function EntertainmentWebsite() {
       setShowMobileMenu(false);
     }
   };
+
 
   if (isAdmin) {
     return (
@@ -452,8 +643,8 @@ function EntertainmentWebsite() {
             <div className="bg-[#2A2A2A] p-6 rounded-xl shadow-sm border border-[#333333] hover:shadow-md transition-shadow cursor-pointer">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-400">Total Contestants</p>
-                  <h3 className="text-2xl font-bold mt-1 text-[#FFD700]">{contestants.length}</h3>
+                  <p className="text-sm font-medium text-gray-400">Total Contests</p>
+                  <h3 className="text-2xl font-bold mt-1 text-[#FFD700]">{contests.length}</h3>
                 </div>
                 <div className="p-3 bg-[#4F46E5]/10 rounded-lg">
                   <FiUsers className="text-[#FFD700] text-xl" />
@@ -465,7 +656,19 @@ function EntertainmentWebsite() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-400">Total Votes</p>
-                  <h3 className="text-2xl font-bold mt-1 text-[#7C3AED]">{contestants.reduce((sum, c) => sum + c.votes, 0)}</h3>
+                  <h3 className="text-2xl font-bold mt-1 text-[#7C3AED]">
+                    {
+                      contests.reduce(
+                        (totalVotes: number, contest: Contest) =>
+                          totalVotes + contest.contestants.reduce(
+                            (contestVotes: number, contestant: Contestant) =>
+                              contestVotes + contestant.votes,
+                            0
+                          ),
+                        0
+                      )
+                    }
+                  </h3>
                 </div>
                 <div className="p-3 bg-[#7C3AED]/10 rounded-lg">
                   <FiBarChart2 className="text-[#7C3AED] text-xl" />
@@ -478,7 +681,7 @@ function EntertainmentWebsite() {
                 <div>
                   <p className="text-sm font-medium text-gray-400">Total Revenue</p>
                   <h3 className="text-2xl font-bold mt-1 text-[#10B981]">
-                    ₦{contestants.reduce((sum, c) => sum + c.amountGained, 0).toLocaleString()}
+                    ₦{contests.reduce((sum, c) => sum + c.contestants.reduce((s, ct) => s + ct.amountGained, 0), 0).toLocaleString()}
                   </h3>
                 </div>
                 <div className="p-3 bg-[#10B981]/10 rounded-lg">
@@ -488,187 +691,158 @@ function EntertainmentWebsite() {
             </div>
           </div>
 
-          {/* Contestants Section */}
+          {/* Contests Section */}
           <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] mb-8 overflow-hidden">
             <div className="p-6 border-b border-[#333333] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-[#FFD700]">Contestants Management</h2>
+              <h2 className="text-xl font-bold text-[#FFD700]">Contests Management</h2>
               <button
                 onClick={() => {
-                  setEditingContestant(null);
-                  setNewContestant({
-                    name: '',
-                    category: 'music',
-                    bio: '',
-                    image: '',
+                  setEditingContest(null);
+                  setNewContest({
+                    title: '',
                     description: '',
+                    category: '',
+                    isActive: true
                   });
                 }}
                 className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-4 py-2 rounded-lg transition-colors"
               >
                 <FiPlus />
-                <span>Add Contestant</span>
+                <span>Add Contest</span>
               </button>
             </div>
 
-            {/* Add/Edit Contestant Form */}
+            {/* Add/Edit Contest Form */}
             <div className="p-6 border-b border-[#333333]">
               <h3 className="text-lg font-medium mb-4 text-[#FFD700]">
-                {editingContestant ? 'Edit Contestant' : 'Add New Contestant'}
+                {editingContest ? 'Edit Contest' : 'Add New Contest'}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-400">Name</label>
+                  <label className="block text-sm font-medium mb-2 text-gray-400">Title</label>
                   <input
                     type="text"
-                    value={editingContestant ? editingContestant.name : newContestant.name}
-                    onChange={(e) => editingContestant
-                      ? setEditingContestant({ ...editingContestant, name: e.target.value })
-                      : setNewContestant({ ...newContestant, name: e.target.value })
+                    value={editingContest ? editingContest.title : newContest.title}
+                    onChange={(e) => editingContest
+                      ? setEditingContest({ ...editingContest, title: e.target.value })
+                      : setNewContest({ ...newContest, title: e.target.value })
                     }
                     className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-600">Category</label>
-                  <select
-                    value={editingContestant ? editingContestant.category : newContestant.category}
-                    onChange={(e) => editingContestant
-                      ? setEditingContestant({ ...editingContestant, category: e.target.value })
-                      : setNewContestant({ ...newContestant, category: e.target.value })
-                    }
-                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-pointer text-gray-600"
-                  >
-                    <option value="music" className='text-gray-800'>Music</option>
-                    <option value="comedy" className='text-gray-800'>Comedy</option>
-                    <option value="movie" className='text-gray-800'>Movie</option>
-                    <option value="talk" className='text-gray-800'>Talk Show</option>
-                  </select>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2 text-gray-600">Image URL</label>
+                  <label className="block text-sm font-medium mb-2 text-gray-400">Category</label>
                   <input
                     type="text"
-                    value={editingContestant ? editingContestant.image : newContestant.image}
-                    onChange={(e) => editingContestant
-                      ? setEditingContestant({ ...editingContestant, image: e.target.value })
-                      : setNewContestant({ ...newContestant, image: e.target.value })
+                    value={editingContest ? editingContest.category : newContest.category}
+                    onChange={(e) => editingContest
+                      ? setEditingContest({ ...editingContest, category: e.target.value })
+                      : setNewContest({ ...newContest, category: e.target.value })
                     }
-                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
-                    placeholder="Paste image URL here"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-600">Bio</label>
-                  <input
-                    type="text"
-                    value={editingContestant ? editingContestant.bio : newContestant.bio}
-                    onChange={(e) => editingContestant
-                      ? setEditingContestant({ ...editingContestant, bio: e.target.value })
-                      : setNewContestant({ ...newContestant, bio: e.target.value })
-                    }
-                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-600">Amount Gained (₦)</label>
-                  <input
-                    type="number"
-                    value={editingContestant ? editingContestant.amountGained : 0}
-                    onChange={(e) => editingContestant
-                      ? setEditingContestant({ ...editingContestant, amountGained: Number(e.target.value) })
-                      : null
-                    }
-                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
-                    disabled={!editingContestant}
+                    className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
+                    placeholder="E.g. BOUESTI MASS COM"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2 text-gray-600">Description</label>
+                  <label className="block text-sm font-medium mb-2 text-gray-400">Description</label>
                   <textarea
-                    value={editingContestant ? editingContestant.description : newContestant.description}
-                    onChange={(e) => editingContestant
-                      ? setEditingContestant({ ...editingContestant, description: e.target.value })
-                      : setNewContestant({ ...newContestant, description: e.target.value })
+                    value={editingContest ? editingContest.description : newContest.description}
+                    onChange={(e) => editingContest
+                      ? setEditingContest({ ...editingContest, description: e.target.value })
+                      : setNewContest({ ...newContest, description: e.target.value })
                     }
-                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
+                    className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
                     rows={3}
                   ></textarea>
                 </div>
+                <div>
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingContest ? editingContest.isActive : newContest.isActive}
+                      onChange={(e) => editingContest
+                        ? setEditingContest({ ...editingContest, isActive: e.target.checked })
+                        : setNewContest({ ...newContest, isActive: e.target.checked })
+                      }
+                      className="form-checkbox h-5 w-5 text-[#4F46E5] rounded focus:ring-[#4F46E5]"
+                    />
+                    <span className="text-gray-400">Active Contest</span>
+                  </label>
+                </div>
               </div>
               <div className="flex justify-end mt-4 space-x-3">
-                {editingContestant && (
+                {editingContest && (
                   <button
-                    onClick={() => setEditingContestant(null)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    onClick={() => setEditingContest(null)}
+                    className="px-4 py-2 border border-[#444444] text-gray-300 rounded-lg hover:bg-[#333333] transition-colors"
                   >
                     Cancel
                   </button>
                 )}
                 <button
-                  onClick={editingContestant ? updateContestant : addContestant}
-                  className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition-colors"
+                  onClick={editingContest ? updateContest : addContest}
+                  className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-6 py-2 rounded-lg transition-colors"
                 >
-                  {editingContestant ? (
+                  {editingContest ? (
                     <>
                       <FiEdit2 />
-                      <span>Update Contestant</span>
+                      <span>Update Contest</span>
                     </>
                   ) : (
                     <>
                       <FiPlus />
-                      <span>Add Contestant</span>
+                      <span>Add Contest</span>
                     </>
                   )}
                 </button>
               </div>
             </div>
 
-            {/* Contestants Table */}
+            {/* Contests Table */}
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-[#333333]">
                 <thead className="bg-[#333333]">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Contestant</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Votes</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Title</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Contestants</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-[#2A2A2A] divide-y divide-[#333333]">
-                  {contestants.map((contestant) => (
-                    <tr key={contestant.id} className="hover:bg-[#333333] transition-colors">
+                  {contests.map((contest) => (
+                    <tr key={contest.id} className="hover:bg-[#333333] transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            <Image
-                              src={contestant.image}
-                              alt={contestant.name}
-                              width={40}
-                              height={40}
-                              className="rounded-full"
-                              unoptimized
-                            />
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-white">{contestant.name}</div>
-                            <div className="text-sm text-gray-400">{contestant.bio}</div>
-                          </div>
-                        </div>
+                        <div className="font-medium text-white">{contest.title}</div>
+                        <div className="text-sm text-gray-400 line-clamp-1">{contest.description}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{contestant.category}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{contestant.votes}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₦{contestant.amountGained.toLocaleString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 capitalize">{contest.category}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{contest.contestants.length}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs rounded-full ${contest.isActive ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'}`}>
+                          {contest.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
-                          onClick={() => setEditingContestant(contestant)}
-                          className="text-indigo-600 hover:text-indigo-900 mr-4"
+                          onClick={() => {
+                            setEditingContest(contest);
+                            setSelectedContest(contest);
+                          }}
+                          className="text-[#FFD700] hover:text-[#E6C200] mr-4"
                         >
                           <FiEdit2 />
                         </button>
                         <button
-                          onClick={() => deleteContestant(contestant.id)}
-                          className="text-red-600 hover:text-red-900"
+                          onClick={() => toggleContestStatus(contest.id)}
+                          className={`mr-4 ${contest.isActive ? 'text-yellow-500 hover:text-yellow-400' : 'text-green-500 hover:text-green-400'}`}
+                        >
+                          {contest.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          onClick={() => deleteContest(contest.id)}
+                          className="text-red-600 hover:text-red-500"
                         >
                           <FiTrash2 />
                         </button>
@@ -679,6 +853,184 @@ function EntertainmentWebsite() {
               </table>
             </div>
           </div>
+
+          {/* Contestants Section (when a contest is selected) */}
+          {selectedContest && (
+            <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] mb-8 overflow-hidden">
+              <div className="p-6 border-b border-[#333333] flex justify-between items-center">
+                <h2 className="text-xl font-bold text-[#FFD700]">
+                  Contestants for: {selectedContest.title}
+                </h2>
+                <button
+                  onClick={() => {
+                    setEditingContestant(null);
+                    setNewContestant({
+                      name: '',
+                      bio: '',
+                      image: '',
+                    });
+                  }}
+                  className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <FiPlus />
+                  <span>Add Contestant</span>
+                </button>
+              </div>
+
+              {/* Add/Edit Contestant Form */}
+              <div className="p-6 border-b border-[#333333]">
+                <h3 className="text-lg font-medium mb-4 text-[#FFD700]">
+                  {editingContestant ? 'Edit Contestant' : 'Add New Contestant'}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-400">Name</label>
+                    <input
+                      type="text"
+                      value={editingContestant ? editingContestant.name : newContestant.name}
+                      onChange={(e) => editingContestant
+                        ? setEditingContestant({ ...editingContestant, name: e.target.value })
+                        : setNewContestant({ ...newContestant, name: e.target.value })
+                      }
+                      className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-400">Bio</label>
+                    <input
+                      type="text"
+                      value={editingContestant ? editingContestant.bio : newContestant.bio}
+                      onChange={(e) => editingContestant
+                        ? setEditingContestant({ ...editingContestant, bio: e.target.value })
+                        : setNewContestant({ ...newContestant, bio: e.target.value })
+                      }
+                      className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-2 text-gray-400">Image URL</label>
+                    <input
+                      type="text"
+                      value={editingContestant ? editingContestant.image : newContestant.image}
+                      onChange={(e) => editingContestant
+                        ? setEditingContestant({ ...editingContestant, image: e.target.value })
+                        : setNewContestant({ ...newContestant, image: e.target.value })
+                      }
+                      className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
+                      placeholder="Paste image URL here"
+                    />
+                  </div>
+                  {editingContestant && (
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-400">Votes</label>
+                      <input
+                        type="number"
+                        value={editingContestant.votes}
+                        onChange={(e) => setEditingContestant({
+                          ...editingContestant,
+                          votes: parseInt(e.target.value) || 0
+                        })}
+                        className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
+                      />
+                    </div>
+                  )}
+                  {editingContestant && (
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-400">Amount Gained (₦)</label>
+                      <input
+                        type="number"
+                        value={editingContestant.amountGained}
+                        onChange={(e) => setEditingContestant({
+                          ...editingContestant,
+                          amountGained: parseInt(e.target.value) || 0
+                        })}
+                        className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-end mt-4 space-x-3">
+                  {editingContestant && (
+                    <button
+                      onClick={() => setEditingContestant(null)}
+                      className="px-4 py-2 border border-[#444444] text-gray-300 rounded-lg hover:bg-[#333333] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    onClick={editingContestant ? updateContestant : addContestant}
+                    className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-6 py-2 rounded-lg transition-colors"
+                  >
+                    {editingContestant ? (
+                      <>
+                        <FiEdit2 />
+                        <span>Update Contestant</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiPlus />
+                        <span>Add Contestant</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Contestants Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+                {selectedContest.contestants.map((contestant) => (
+                  <div key={contestant.id} className="border border-[#333333] rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                    <div className="relative h-48">
+                      <Image
+                        src={contestant.image}
+                        alt={contestant.name}
+                        layout="fill"
+                        objectFit="cover"
+                        unoptimized
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-lg text-white mb-2">{contestant.name}</h3>
+                      <p className="text-gray-300 text-sm mb-4">{contestant.bio}</p>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="text-[#FFD700] font-bold">{contestant.votes} votes</span>
+                          <div className="text-xs text-gray-400">₦{contestant.amountGained.toLocaleString()}</div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              setEditingContestant(contestant);
+                            }}
+                            className="text-[#4F46E5] hover:text-[#4338CA]"
+                          >
+                            <FiEdit2 />
+                          </button>
+                          <button
+                            onClick={() => deleteContestant(contestant.id)}
+                            className="text-red-600 hover:text-red-500"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
+                      </div>
+                      {contestant.comments.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-[#333333]">
+                          <h4 className="text-sm font-medium text-gray-400 mb-1">Comments ({contestant.comments.length})</h4>
+                          <div className="max-h-20 overflow-y-auto">
+                            {contestant.comments.map(comment => (
+                              <p key={comment.id} className="text-xs text-gray-500 mb-1">- {comment.text}</p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Events Section */}
           <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] overflow-hidden">
@@ -694,7 +1046,7 @@ function EntertainmentWebsite() {
                     image: '',
                   });
                 }}
-                className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
+                className="flex items-center space-x-2 bg-gradient-to-r from-[#FFD700] to-[#E6C200] hover:opacity-90 text-[#1A1A1A] px-4 py-2 rounded-lg transition-colors font-semibold"
               >
                 <FiPlus />
                 <span>Add Event</span>
@@ -768,7 +1120,7 @@ function EntertainmentWebsite() {
                 )}
                 <button
                   onClick={editingEvent ? updateEvent : addEvent}
-                  className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition-colors"
+                  className="flex items-center space-x-2 bg-gradient-to-r from-[#FFD700] to-[#E6C200] hover:opacity-90 text-[#1A1A1A] px-6 py-2 rounded-lg transition-colors font-semibold"
                 >
                   {editingEvent ? (
                     <>
@@ -799,12 +1151,12 @@ function EntertainmentWebsite() {
                     />
                   </div>
                   <div className="p-4">
-                    <h3 className="font-bold text-lg text-gray-800 mb-2">{event.title}</h3>
-                    <div className="flex items-center text-gray-600 mb-1">
+                    <h3 className="font-bold text-lg text-gray-300 mb-2">{event.title}</h3>
+                    <div className="flex items-center text-gray-200 mb-1">
                       <FiCalendar className="mr-2 text-indigo-500" />
                       <span>{event.date}</span>
                     </div>
-                    <div className="flex items-center text-gray-600 mb-4">
+                    <div className="flex items-center text-gray-200 mb-4">
                       <FiMapPin className="mr-2 text-indigo-500" />
                       <span>{event.location}</span>
                     </div>
@@ -837,14 +1189,14 @@ function EntertainmentWebsite() {
     return (
       <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center p-4">
         <div className="bg-[#2A2A2A] rounded-xl shadow-xl overflow-hidden max-w-md w-full border border-[#333333]">
-          <div className="bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] p-6 text-white text-center">
+          <div className="bg-gradient-to-r from-[#FFD700] to-[#E6C200] p-6 text-[#1A1A1A] text-center">
             <div className="flex justify-center mb-4">
-              <div className="bg-white/10 p-3 rounded-full">
-                <FiAward className="text-white text-2xl" />
+              <div className="bg-[#FFF8DC] p-3 rounded-full">
+                <FiAward className="text-[#FFD700] text-2xl" />
               </div>
             </div>
             <h2 className="text-2xl font-bold">Admin Portal</h2>
-            <p className="text-indigo-200 mt-1">Enter your credentials to continue</p>
+            <p className="text-[#8B8000] mt-1">Enter your credentials to continue</p>
           </div>
 
           <div className="p-6">
@@ -899,13 +1251,76 @@ function EntertainmentWebsite() {
                 </button>
                 <button
                   onClick={handleAdminLogin}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] text-white px-5 py-2 rounded-lg hover:opacity-90 transition-opacity cursor-pointer"
+                  className="flex items-center space-x-2 bg-gradient-to-r from-[#FFD700] to-[#E6C200] text-[#1A1A1A] px-5 py-2 rounded-lg hover:opacity-90 transition-opacity cursor-pointer font-semibold"
                 >
                   <span>Login</span>
                   <FiChevronRight />
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Contest View Modal
+  if (viewingContest) {
+    return (
+      <div className="min-h-screen bg-[#1A1A1A] text-white p-4">
+        <div className="container mx-auto">
+          <button
+            onClick={() => setViewingContest(null)}
+            className="flex items-center text-[#FFD700] mb-6 hover:underline"
+          >
+            <FiChevronLeft className="mr-1" /> Back to Contests
+          </button>
+
+          <div className="bg-[#2A2A2A] rounded-xl p-6 mb-8">
+            <h1 className="text-3xl font-bold text-[#FFD700] mb-2">{viewingContest.title}</h1>
+            <p className="text-gray-300 mb-4">{viewingContest.description}</p>
+            <div className="flex items-center text-gray-400">
+              <FiAward className="mr-2" />
+              <span>Category: {viewingContest.category}</span>
+            </div>
+          </div>
+
+          <h2 className="text-2xl font-bold text-white mb-6">Contestants</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {viewingContest.contestants.map(contestant => (
+              <div key={contestant.id} className="bg-[#2A2A2A] rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+                <div className="relative h-48">
+                  <Image
+                    src={contestant.image}
+                    alt={contestant.name}
+                    layout="fill"
+                    objectFit="cover"
+                    unoptimized
+                  />
+                </div>
+                <div className="p-4">
+                  <h3 className="text-xl font-bold text-white mb-2">{contestant.name}</h3>
+                  <p className="text-gray-300 mb-4">{contestant.bio}</p>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-[#FFD700] font-bold">{contestant.votes} votes</span>
+                      <div className="text-xs text-gray-400">₦{contestant.amountGained.toLocaleString()}</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedContestant(contestant);
+                        setSelectedContest(viewingContest);
+                        setShowVoteDialog(true);
+                      }}
+                      className="bg-[#FFD700] text-[#1A1A1A] px-4 py-1 rounded-full hover:bg-[#E6C200] transition-colors"
+                    >
+                      Vote Now
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -1017,65 +1432,19 @@ function EntertainmentWebsite() {
         )}
       </header>
 
-      {/* Admin Login Modal */}
-      {showAdminLogin && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
-          <div className="bg-white text-[#1A1A1A] p-8 rounded-xl max-w-md w-full shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6 text-[#FFD700]">Admin Login</h2>
-            <div className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium mb-2">Username</label>
-                <input
-                  type="text"
-                  value={adminCredentials.username}
-                  onChange={(e) => setAdminCredentials({ ...adminCredentials, username: e.target.value })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700] focus:outline-none cursor-text"
-                  placeholder="Enter admin username"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Password</label>
-                <input
-                  type="password"
-                  value={adminCredentials.password}
-                  onChange={(e) => setAdminCredentials({ ...adminCredentials, password: e.target.value })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FFD700] focus:outline-none cursor-text"
-                  placeholder="Enter password"
-                />
-              </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowAdminLogin(false)}
-                  className="px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAdminLogin}
-                  className="px-5 py-2 bg-[#FFD700] text-[#1A1A1A] rounded-lg flex items-center hover:bg-[#E6C200] transition-transform transform hover:scale-105 cursor-pointer"
-                >
-                  <FiLogIn className="mr-2" />
-                  Login
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Main Content */}
       <main>
         {/* Hero Section */}
         <section id="home" className="relative min-h-[80vh] flex items-center justify-center">
           <div className="absolute inset-0 z-0">
-            <Image
+            {/* <Image
               src={dummyImages.landingBg}
               alt="Entertainment Platform"
               layout="fill"
               objectFit="cover"
               className="opacity-50"
               unoptimized
-            />
+            /> */}
             <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A] via-transparent to-transparent"></div>
           </div>
 
@@ -1096,7 +1465,7 @@ function EntertainmentWebsite() {
                 View Events
               </button>
               <button
-                onClick={() => scrollToSection('contestants')}
+                onClick={() => scrollToSection('contests')}
                 className="bg-transparent border-2 border-[#FFD700] text-[#FFD700] px-8 py-3 rounded-full font-semibold text-lg hover:bg-[#FFD700]/10 transition-transform transform hover:scale-105 cursor-pointer"
               >
                 Vote Now
@@ -1286,6 +1655,50 @@ function EntertainmentWebsite() {
           </div>
         </section>
 
+        {/* Contests Section */}
+        <section id="contests" className="py-16 bg-[#2A2A2A]">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center text-[#FFD700]">
+              Ongoing Contests
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {contests.filter(c => c.isActive).map((contest) => (
+                <div
+                  key={contest.id}
+                  className="bg-[#1A1A1A] rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+                  onClick={() => setViewingContest(contest)}
+                >
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="text-xl font-bold text-[#FFD700]">{contest.title}</h3>
+                      <span className="bg-green-900 text-green-300 text-xs px-2 py-1 rounded-full">
+                        Active
+                      </span>
+                    </div>
+                    <p className="text-gray-300 mb-4">{contest.description}</p>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center text-gray-400">
+                        <FiAward className="mr-2" />
+                        <span>{contest.category}</span>
+                      </div>
+                      <button
+                        className="text-[#FFD700] hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setViewingContest(contest);
+                        }}
+                      >
+                        View Contestants
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Contact Section */}
         <section id="contact" className="py-16 bg-[#2A2A2A]">
           <div className="container mx-auto px-4">
@@ -1423,15 +1836,34 @@ function EntertainmentWebsite() {
                 />
               </div>
               <div>
-                <p className="text-sm text-gray-300 mb-2 capitalize">
-                  Category: {selectedContestant.category}
-                </p>
+                {selectedContest && (
+                  <>
+                    <p className="text-sm text-gray-300 mb-2">
+                      Contest: {selectedContest.title}
+                    </p>
+                    <p className="text-sm text-gray-300 mb-2">
+                      Category: {selectedContest.category}
+                    </p>
+                  </>
+                )}
                 <p className="text-sm text-gray-300">Votes: {selectedContestant.votes}</p>
               </div>
             </div>
             <div className="mb-6">
               <h3 className="font-medium mb-2 text-white">About</h3>
-              <p className="text-gray-300 text-sm">{selectedContestant.description}</p>
+              <p className="text-gray-300 text-sm">{selectedContestant.bio}</p>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2 text-gray-300">
+                Add a comment (optional)
+              </label>
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#FFD700] focus:border-[#FFD700] cursor-text"
+                rows={3}
+                placeholder="Your anonymous comment..."
+              ></textarea>
             </div>
             <div className="flex justify-end gap-3">
               <button
