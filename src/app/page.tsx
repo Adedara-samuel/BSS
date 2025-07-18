@@ -8,6 +8,8 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import * as Toast from '@radix-ui/react-toast';
+import emailjs from '@emailjs/browser';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -69,7 +71,7 @@ type Event = {
 
 // Dummy images from Unsplash
 const dummyImages = {
-  landingBg: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
+  landingBg: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
   trending: [
     'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
     'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
@@ -136,6 +138,53 @@ function EntertainmentWebsite() {
     username: '',
     password: '',
   });
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    message: ''
+  });
+  const [isSending, setIsSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState<{ success: boolean, message: string } | null>(null);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSending(true);
+    setSendStatus(null);
+
+    // Replace these with your actual EmailJS service details
+    const serviceID = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || 'service_jxydp5u';
+    const templateID = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || 'template_klygytj';
+    const userID = process.env.NEXT_PUBLIC_EMAILJS_USER_ID || 'W6z-f_nbHSrrhFapR';
+
+    emailjs.send(serviceID, templateID, {
+      name: formData.name,
+      email: formData.email,
+      message: formData.message,
+      to_name: 'BSS Entertainment'
+    }, userID)
+      .then(() => {
+        setSendStatus({ success: true, message: 'Message sent successfully!' });
+        setFormData({ name: '', email: '', message: '' });
+        showToast('Message Sent', 'Your message has been sent successfully!');
+      })
+      .catch((error: any) => {
+        console.error('Failed to send message:', error);
+        setSendStatus({ success: false, message: 'Failed to send message. Please try again.' });
+        showToast('Error', 'Failed to send message. Please try again.', 'error');
+      })
+      .finally(() => {
+        setIsSending(false);
+      });
+  };
+
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [newContest, setNewContest] = useState({
     title: '',
@@ -161,8 +210,18 @@ function EntertainmentWebsite() {
   const [commentText, setCommentText] = useState('');
   const [viewingContest, setViewingContest] = useState<Contest | null>(null);
   const [PaystackButton, setPaystackButton] = useState<any>(null);
+  const [toasts, setToasts] = useState<{ id: string; title: string; description: string; type: 'success' | 'error' }[]>([]);
 
   const companyLocation = "Ikerre 361101, Ekiti, Nigeria";
+
+  // Toast functions
+  const showToast = (title: string, description: string, type: 'success' | 'error' = 'success') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, title, description, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 5000);
+  };
 
   // Check for mobile view
   useEffect(() => {
@@ -377,7 +436,7 @@ function EntertainmentWebsite() {
           }
 
           setShowVoteDialog(false);
-          alert(`Vote successful! Reference: ${reference.reference}`);
+          showToast('Vote Successful', `Your vote for ${selectedContestant.name} has been recorded!`);
         },
         onClose: () => {
           console.log('Payment closed');
@@ -385,7 +444,7 @@ function EntertainmentWebsite() {
       });
     } else {
       console.error('Paystack not loaded yet');
-      alert('Payment system is not ready. Please try again later.');
+      showToast('Payment Error', 'Payment system is not ready. Please try again later.', 'error');
     }
   };
 
@@ -393,8 +452,10 @@ function EntertainmentWebsite() {
     try {
       await signOut(auth);
       setUser(null);
+      showToast('Signed Out', 'You have been successfully signed out');
     } catch (error) {
       console.error('Sign Out Error:', error);
+      showToast('Error', 'Failed to sign out. Please try again.', 'error');
     }
   };
 
@@ -412,8 +473,9 @@ function EntertainmentWebsite() {
     ) {
       setIsAdmin(true);
       setShowAdminLogin(false);
+      showToast('Admin Login', 'Welcome back, Admin!');
     } else {
-      alert('Invalid credentials');
+      showToast('Login Failed', 'Invalid admin credentials', 'error');
     }
   };
 
@@ -438,6 +500,9 @@ function EntertainmentWebsite() {
         category: '',
         isActive: true
       });
+      showToast('Contest Added', `${newContest.title} has been added successfully`);
+    } else {
+      showToast('Error', 'Please fill all required fields', 'error');
     }
   };
 
@@ -449,11 +514,16 @@ function EntertainmentWebsite() {
         )
       );
       setEditingContest(null);
+      showToast('Contest Updated', `${editingContest.title} has been updated`);
     }
   };
 
   const deleteContest = (id: string) => {
-    setContests(contests.filter(c => c.id !== id));
+    const contest = contests.find(c => c.id === id);
+    if (contest) {
+      setContests(contests.filter(c => c.id !== id));
+      showToast('Contest Removed', `${contest.title} has been deleted`);
+    }
   };
 
   const addContestant = () => {
@@ -486,6 +556,9 @@ function EntertainmentWebsite() {
         bio: '',
         image: '',
       });
+      showToast('Contestant Added', `${newContestant.name} has been added to ${selectedContest.title}`);
+    } else {
+      showToast('Error', 'Please fill all required fields', 'error');
     }
   };
 
@@ -503,23 +576,28 @@ function EntertainmentWebsite() {
 
       setContests(updatedContests);
       setEditingContestant(null);
+      showToast('Contestant Updated', `${editingContestant.name} has been updated`);
     }
   };
 
   const deleteContestant = (id: string) => {
     if (!selectedContest) return;
 
-    const updatedContests = contests.map(contest => {
-      if (contest.id === selectedContest.id) {
-        return {
-          ...contest,
-          contestants: contest.contestants.filter(c => c.id !== id)
-        };
-      }
-      return contest;
-    });
+    const contestant = selectedContest.contestants.find(c => c.id === id);
+    if (contestant) {
+      const updatedContests = contests.map(contest => {
+        if (contest.id === selectedContest.id) {
+          return {
+            ...contest,
+            contestants: contest.contestants.filter(c => c.id !== id)
+          };
+        }
+        return contest;
+      });
 
-    setContests(updatedContests);
+      setContests(updatedContests);
+      showToast('Contestant Removed', `${contestant.name} has been deleted`);
+    }
   };
 
   const addEvent = () => {
@@ -539,6 +617,9 @@ function EntertainmentWebsite() {
         location: '',
         image: '',
       });
+      showToast('Event Added', `${newEvent.title} has been added to events`);
+    } else {
+      showToast('Error', 'Please fill all required fields', 'error');
     }
   };
 
@@ -550,17 +631,27 @@ function EntertainmentWebsite() {
         )
       );
       setEditingEvent(null);
+      showToast('Event Updated', `${editingEvent.title} has been updated`);
     }
   };
 
   const deleteEvent = (id: number) => {
-    setEvents(events.filter(e => e.id !== id));
+    const event = events.find(e => e.id === id);
+    if (event) {
+      setEvents(events.filter(e => e.id !== id));
+      showToast('Event Removed', `${event.title} has been deleted`);
+    }
   };
 
   const toggleContestStatus = (contestId: string) => {
     setContests(contests.map(contest => {
       if (contest.id === contestId) {
-        return { ...contest, isActive: !contest.isActive };
+        const newStatus = !contest.isActive;
+        showToast(
+          newStatus ? 'Contest Activated' : 'Contest Deactivated',
+          `${contest.title} has been ${newStatus ? 'activated' : 'deactivated'}`
+        );
+        return { ...contest, isActive: newStatus };
       }
       return contest;
     }));
@@ -611,6 +702,60 @@ function EntertainmentWebsite() {
     }
   };
 
+  // Contestant Details View
+  const ContestantDetails = ({ contestant, contest }: { contestant: Contestant, contest: Contest }) => {
+    return (
+      <div className="bg-[#2A2A2A] rounded-xl p-6">
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="md:w-1/3">
+            <div className="relative h-64 rounded-lg overflow-hidden">
+              <Image
+                src={contestant.image}
+                alt={contestant.name}
+                layout="fill"
+                objectFit="cover"
+                unoptimized
+              />
+            </div>
+            <div className="mt-4 text-center">
+              <h3 className="text-xl font-bold text-[#FFD700]">{contestant.name}</h3>
+              <p className="text-gray-300 capitalize">{contestant.category}</p>
+              <div className="mt-2">
+                <span className="text-lg font-bold text-[#FFD700]">{contestant.votes} votes</span>
+                <div className="text-sm text-gray-400">₦{contestant.amountGained.toLocaleString()} raised</div>
+              </div>
+            </div>
+          </div>
+          <div className="md:w-2/3">
+            <h3 className="text-2xl font-bold text-[#FFD700] mb-4">About</h3>
+            <p className="text-gray-300 mb-6">{contestant.bio}</p>
+
+            <div className="mb-6">
+              <h4 className="text-xl font-bold text-white mb-2">Contest Details</h4>
+              <p className="text-gray-300">{contest.title}</p>
+              <p className="text-gray-400 text-sm">{contest.description}</p>
+            </div>
+
+            {contestant.comments.length > 0 && (
+              <div>
+                <h4 className="text-xl font-bold text-white mb-2">Comments ({contestant.comments.length})</h4>
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                  {contestant.comments.map(comment => (
+                    <div key={comment.id} className="bg-[#333333] p-3 rounded-lg">
+                      <p className="text-gray-300 text-sm">{comment.text}</p>
+                      <p className="text-gray-500 text-xs mt-1">
+                        {new Date(comment.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   if (isAdmin) {
     return (
@@ -797,6 +942,230 @@ function EntertainmentWebsite() {
                 </button>
               </div>
             </div>
+            {/* Contests Table */}
+
+            {/* Contestants Table Section */}
+            <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] mb-8 overflow-hidden">
+              <div className="p-6 border-b border-[#333333]">
+                <h2 className="text-xl font-bold text-[#FFD700]">All Contestants</h2>
+                <p className="text-gray-400 text-sm">Click on any contestant to view detailed information</p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-[#333333]">
+                  <thead className="bg-[#333333]">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Contestant</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Contest</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Votes</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount Raised</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Comments</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-[#2A2A2A] divide-y divide-[#333333]">
+                    {contests.flatMap(contest =>
+                      contest.contestants.map(contestant => (
+                        <tr
+                          key={`${contest.id}-${contestant.id}`}
+                          className="hover:bg-[#333333] transition-colors cursor-pointer"
+                          onClick={() => {
+                            setSelectedContest(contest);
+                            setSelectedContestant(contestant);
+                          }}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10 rounded-full overflow-hidden">
+                                <Image
+                                  src={contestant.image}
+                                  alt={contestant.name}
+                                  width={40}
+                                  height={40}
+                                  className="h-full w-full object-cover"
+                                  unoptimized
+                                />
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-white">{contestant.name}</div>
+                                <div className="text-sm text-gray-400 line-clamp-1">{contestant.bio}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-white">{contest.title}</div>
+                            <div className="text-xs text-gray-400">{contest.category}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-[#FFD700] font-bold">
+                            {contestant.votes}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-green-400">
+                            ₦{contestant.amountGained.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                            {contestant.comments.length}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                            <span className={`px-2 py-1 text-xs rounded-full ${contest.isActive ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'}`}>
+                              {contest.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Contestant Details Modal */}
+            {selectedContestant && selectedContest && (
+              <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+                <div className="bg-[#2A2A2A] rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+                  <div className="sticky top-0 bg-[#2A2A2A] z-10 p-4 border-b border-[#333333] flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-[#FFD700]">
+                      Contestant Details: {selectedContestant.name}
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setSelectedContestant(null);
+                        setSelectedContest(null);
+                      }}
+                      className="text-gray-400 hover:text-[#FFD700] p-1 rounded-full"
+                    >
+                      <FiX size={24} />
+                    </button>
+                  </div>
+
+                  <div className="p-6">
+                    <div className="flex flex-col md:flex-row gap-6">
+                      {/* Left Column - Contestant Info */}
+                      <div className="md:w-1/3">
+                        <div className="relative h-64 w-full rounded-lg overflow-hidden mb-4">
+                          <Image
+                            src={selectedContestant.image}
+                            alt={selectedContestant.name}
+                            layout="fill"
+                            objectFit="cover"
+                            unoptimized
+                          />
+                        </div>
+
+                        <div className="bg-[#333333] p-4 rounded-lg mb-4">
+                          <h3 className="text-lg font-bold text-[#FFD700] mb-2">Voting Stats</h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-400">Total Votes</p>
+                              <p className="text-xl font-bold text-white">{selectedContestant.votes}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-400">Amount Raised</p>
+                              <p className="text-xl font-bold text-green-400">₦{selectedContestant.amountGained.toLocaleString()}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-[#333333] p-4 rounded-lg">
+                          <h3 className="text-lg font-bold text-[#FFD700] mb-2">Contest Info</h3>
+                          <p className="text-white font-medium">{selectedContest.title}</p>
+                          <p className="text-gray-300 text-sm mb-2">{selectedContest.description}</p>
+                          <p className="text-gray-400 text-xs">Category: {selectedContest.category}</p>
+                          <p className="text-gray-400 text-xs">Status:
+                            <span className={`ml-1 px-2 py-1 rounded-full ${selectedContest.isActive ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'}`}>
+                              {selectedContest.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Right Column - Bio and Comments */}
+                      <div className="md:w-2/3">
+                        <div className="bg-[#333333] p-4 rounded-lg mb-6">
+                          <h3 className="text-lg font-bold text-[#FFD700] mb-2">Biography</h3>
+                          <p className="text-gray-300">{selectedContestant.bio}</p>
+                        </div>
+
+                        <div className="bg-[#333333] p-4 rounded-lg">
+                          <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-[#FFD700]">Voter Comments ({selectedContestant.comments.length})</h3>
+                            <button
+                              onClick={() => {
+                                const newComment = {
+                                  id: Date.now().toString(),
+                                  text: `Sample comment ${selectedContestant.comments.length + 1}`,
+                                  createdAt: new Date()
+                                };
+                                const updatedContests = contests.map(c => {
+                                  if (c.id === selectedContest.id) {
+                                    const updatedContestants = c.contestants.map(ct => {
+                                      if (ct.id === selectedContestant.id) {
+                                        return {
+                                          ...ct,
+                                          comments: [...ct.comments, newComment]
+                                        };
+                                      }
+                                      return ct;
+                                    });
+                                    return { ...c, contestants: updatedContestants };
+                                  }
+                                  return c;
+                                });
+                                setContests(updatedContests);
+                                showToast('Comment Added', 'New sample comment added');
+                              }}
+                              className="text-xs bg-[#4F46E5] text-white px-3 py-1 rounded hover:bg-[#4338CA]"
+                            >
+                              Add Sample Comment
+                            </button>
+                          </div>
+
+                          {selectedContestant.comments.length > 0 ? (
+                            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                              {selectedContestant.comments.map(comment => (
+                                <div key={comment.id} className="bg-[#2A2A2A] p-3 rounded-lg border-l-4 border-[#FFD700]">
+                                  <p className="text-gray-300">{comment.text}</p>
+                                  <p className="text-gray-500 text-xs mt-2">
+                                    {new Date(comment.createdAt).toLocaleString()}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-gray-400">
+                              <FiInfo className="mx-auto mb-2 text-xl" />
+                              <p>No comments yet</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex justify-end space-x-3">
+                      <button
+                        onClick={() => {
+                          setEditingContestant(selectedContestant);
+                          setSelectedContestant(null);
+                        }}
+                        className="px-4 py-2 bg-[#4F46E5] text-white rounded-lg hover:bg-[#4338CA]"
+                      >
+                        <FiEdit2 className="inline mr-2" />
+                        Edit Contestant
+                      </button>
+                      <button
+                        onClick={() => {
+                          deleteContestant(selectedContestant.id);
+                          setSelectedContestant(null);
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                      >
+                        <FiTrash2 className="inline mr-2" />
+                        Delete Contestant
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Contests Table */}
             <div className="overflow-x-auto">
@@ -1329,6 +1698,29 @@ function EntertainmentWebsite() {
 
   return (
     <div className="min-h-screen bg-[#1A1A1A] text-white">
+      {/* Toast Provider */}
+      <Toast.Provider swipeDirection="right">
+        {toasts.map((toast) => (
+          <Toast.Root
+            key={toast.id}
+            className={`bg-[#2A2A2A] border ${toast.type === 'success' ? 'border-[#4ade80]/30' : 'border-[#f87171]/30'} rounded-lg shadow-lg p-4 grid grid-cols-[auto_max-content] items-center gap-x-4`}
+          >
+            <div className="flex flex-col gap-1">
+              <Toast.Title className={`font-medium ${toast.type === 'success' ? 'text-[#4ade80]' : 'text-[#f87171]'}`}>
+                {toast.title}
+              </Toast.Title>
+              <Toast.Description className="text-sm text-gray-300">
+                {toast.description}
+              </Toast.Description>
+            </div>
+            <Toast.Close className="text-gray-400 hover:text-white">
+              <FiX />
+            </Toast.Close>
+          </Toast.Root>
+        ))}
+        <Toast.Viewport className="fixed top-4 right-4 z-50 flex flex-col gap-2 w-full max-w-xs" />
+      </Toast.Provider>
+
       {/* Header */}
       <header className="bg-[#2A2A2A] sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -1437,14 +1829,14 @@ function EntertainmentWebsite() {
         {/* Hero Section */}
         <section id="home" className="relative min-h-[80vh] flex items-center justify-center">
           <div className="absolute inset-0 z-0">
-            {/* <Image
+            <Image
               src={dummyImages.landingBg}
               alt="Entertainment Platform"
               layout="fill"
               objectFit="cover"
               className="opacity-50"
               unoptimized
-            /> */}
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A] via-transparent to-transparent"></div>
           </div>
 
@@ -1623,9 +2015,14 @@ function EntertainmentWebsite() {
               {contestants.map((contestant) => (
                 <div key={contestant.id} className="text-center">
                   <div
-                    className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mx-auto mb-3 border-2 border-[#FFD700] cursor-pointer hover:shadow-lg transition-shadow"
+                    className="w-full h-20 md:w-24 md:h-24 rounded-full overflow-hidden mx-auto mb-3 border-2 border-[#FFD700] cursor-pointer hover:shadow-lg transition-shadow"
                     onClick={() => {
+                      // Find the contest that includes this contestant
+                      const contest = contests.find((c) =>
+                        c.contestants.some((ct) => ct.id === contestant.id)
+                      );
                       setSelectedContestant(contestant);
+                      setSelectedContest(contest || null); // Set the contest or null if not found
                       setShowVoteDialog(true);
                     }}
                   >
@@ -1642,7 +2039,12 @@ function EntertainmentWebsite() {
                   <p className="text-sm text-gray-400 capitalize">{contestant.category}</p>
                   <button
                     onClick={() => {
+                      // Find the contest that includes this contestant
+                      const contest = contests.find((c) =>
+                        c.contestants.some((ct) => ct.id === contestant.id)
+                      );
                       setSelectedContestant(contestant);
+                      setSelectedContest(contest || null); // Set the contest or null if not found
                       setShowVoteDialog(true);
                     }}
                     className="mt-2 text-xs bg-[#FFD700] text-[#1A1A1A] px-3 py-1 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105 cursor-pointer"
@@ -1742,36 +2144,64 @@ function EntertainmentWebsite() {
                   </div>
                 </div>
 
-                <form className="mt-8 space-y-4">
+                <form onSubmit={handleSubmit} className="mt-8 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-300">Your Name</label>
+                    <label htmlFor="name" className="block text-sm font-medium mb-2 text-gray-300">
+                      Your Name
+                    </label>
                     <input
                       type="text"
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      required
                       className="w-full bg-[#2A2A2A] border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#FFD700] cursor-text"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-300">Your Email</label>
+                    <label htmlFor="email" className="block text-sm font-medium mb-2 text-gray-300">
+                      Your Email
+                    </label>
                     <input
                       type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      required
                       className="w-full bg-[#2A2A2A] border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#FFD700] cursor-text"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-300">Message</label>
+                    <label htmlFor="message" className="block text-sm font-medium mb-2 text-gray-300">
+                      Message
+                    </label>
                     <textarea
+                      id="message"
+                      name="message"
                       rows={4}
+                      value={formData.message}
+                      onChange={handleInputChange}
+                      required
                       className="w-full bg-[#2A2A2A] border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#FFD700] cursor-text"
                     ></textarea>
                   </div>
 
+                  {sendStatus && (
+                    <div className={`p-3 rounded-lg ${sendStatus.success ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}>
+                      {sendStatus.message}
+                    </div>
+                  )}
+
                   <button
                     type="submit"
-                    className="w-full bg-[#FFD700] text-[#1A1A1A] py-3 rounded-full font-bold hover:bg-[#E6C200] transition-colors cursor-pointer"
+                    disabled={isSending}
+                    className={`w-full bg-[#FFD700] text-[#1A1A1A] py-3 rounded-full font-bold hover:bg-[#E6C200] transition-colors cursor-pointer ${isSending ? 'opacity-70' : ''}`}
                   >
-                    Send Message
+                    {isSending ? 'Sending...' : 'Send Message'}
                   </button>
                 </form>
               </div>
@@ -1812,11 +2242,11 @@ function EntertainmentWebsite() {
       </footer>
 
       {/* Vote Dialog */}
-      {showVoteDialog && selectedContestant && (
+      {showVoteDialog && selectedContestant && selectedContest && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-40 flex items-center justify-center p-4">
           <div className="bg-[#2A2A2A] rounded-xl max-w-md w-full p-6 shadow-2xl">
             <div className="flex justify-between items-start mb-4">
-              <h2 className="text-xl font-bold text-[#FFD700]">{selectedContestant.name}</h2>
+              <h2 className="text-xl font-bold text-[#FFD700]">Vote for {selectedContestant.name}</h2>
               <button
                 onClick={() => setShowVoteDialog(false)}
                 className="text-gray-400 hover:text-[#FFD700] cursor-pointer"
@@ -1824,36 +2254,10 @@ function EntertainmentWebsite() {
                 <FiX size={24} />
               </button>
             </div>
-            <div className="flex mb-4">
-              <div className="w-24 h-24 rounded-full overflow-hidden mr-4 border-2 border-[#FFD700]">
-                <Image
-                  src={selectedContestant.image}
-                  alt={selectedContestant.name}
-                  width={96}
-                  height={96}
-                  className="w-full h-full object-cover"
-                  unoptimized
-                />
-              </div>
-              <div>
-                {selectedContest && (
-                  <>
-                    <p className="text-sm text-gray-300 mb-2">
-                      Contest: {selectedContest.title}
-                    </p>
-                    <p className="text-sm text-gray-300 mb-2">
-                      Category: {selectedContest.category}
-                    </p>
-                  </>
-                )}
-                <p className="text-sm text-gray-300">Votes: {selectedContestant.votes}</p>
-              </div>
-            </div>
-            <div className="mb-6">
-              <h3 className="font-medium mb-2 text-white">About</h3>
-              <p className="text-gray-300 text-sm">{selectedContestant.bio}</p>
-            </div>
-            <div className="mb-4">
+
+            <ContestantDetails contestant={selectedContestant} contest={selectedContest} />
+
+            <div className="mt-6">
               <label className="block text-sm font-medium mb-2 text-gray-300">
                 Add a comment (optional)
               </label>
@@ -1865,7 +2269,7 @@ function EntertainmentWebsite() {
                 placeholder="Your anonymous comment..."
               ></textarea>
             </div>
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-3 mt-4">
               <button
                 onClick={() => setShowVoteDialog(false)}
                 className="px-4 py-2 border border-gray-600 rounded-full hover:bg-[#3A3A3A] transition-colors cursor-pointer"
