@@ -841,7 +841,7 @@ function EntertainmentWebsite() {
       <div className="bg-[#2A2A2A] rounded-xl p-6">
         <div className="flex flex-col md:flex-row gap-6">
           <div className="md:w-1/3">
-            <div className="relative h-64 rounded-lg overflow-hidden">
+            <div className="relative h-full rounded-lg overflow-hidden">
               <Image
                 src={contestant.image}
                 alt={contestant.name}
@@ -849,10 +849,6 @@ function EntertainmentWebsite() {
                 objectFit="cover"
                 unoptimized
               />
-            </div>
-            <div className="mt-4 text-center">
-              <h3 className="text-xl font-bold text-[#FFD700]">{contestant.name}</h3>
-              <p className="text-gray-300 capitalize">{contestant.category}</p>
             </div>
           </div>
           <div className="md:w-2/3">
@@ -2310,7 +2306,7 @@ function EntertainmentWebsite() {
 
       {/* Vote Dialog */}
       {showVoteDialog && selectedContestant && selectedContest && (
-        <div className="fixed inset-0 bg-black/20  z-40 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/20 overflow-auto z-40 flex items-center justify-center p-4">
           <div className="bg-[#2A2A2A] rounded-xl h-fit max-w-md w-full p-6 shadow-2xl">
             <div className="flex justify-between items-start mb-4">
               <h2 className="text-xl font-bold text-[#FFD700]">Vote for {selectedContestant.name}</h2>
@@ -2328,7 +2324,7 @@ function EntertainmentWebsite() {
               showVoteInfo={false}
             />
 
-            <div className="mt-6">
+            <div>
               <label className="block text-sm font-medium mb-2 text-gray-300">
                 Add a comment (optional)
               </label>
