@@ -26,6 +26,131 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
+const AddContestantForm = ({
+  contest,
+  onAddContestant
+}: {
+  contest: Contest,
+  onAddContestant: (contestant: Omit<Contestant, 'id' | 'votes' | 'amountGained' | 'comments'>) => void
+}) => {
+  const [newContestant, setNewContestant] = useState({
+    name: '',
+    bio: '',
+    image: '',
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newContestant.name && newContestant.image) {
+      onAddContestant(newContestant);
+      setNewContestant({
+        name: '',
+        bio: '',
+        image: '',
+      });
+    }
+  };
+
+  const ContestantDetailsView = ({ contestant, contest }: { contestant: Contestant, contest: Contest }) => {
+    return (
+      <div className="bg-[#2A2A2A] rounded-xl p-6">
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="md:w-1/3">
+            <div className="relative h-64 rounded-lg overflow-hidden">
+              <Image
+                src={contestant.image}
+                alt={contestant.name}
+                layout="fill"
+                objectFit="cover"
+                unoptimized
+              />
+            </div>
+            <div className="mt-4 text-center">
+              <h3 className="text-xl font-bold text-[#FFD700]">{contestant.name}</h3>
+              <p className="text-gray-300 capitalize">{contestant.category}</p>
+            </div>
+          </div>
+          <div className="md:w-2/3">
+            <h3 className="text-2xl font-bold text-[#FFD700] mb-4">About</h3>
+            <p className="text-gray-300 mb-6">{contestant.bio}</p>
+
+            <div className="mb-6">
+              <h4 className="text-xl font-bold text-white mb-2">Contest Details</h4>
+              <p className="text-gray-300">{contest.title}</p>
+              <p className="text-gray-400 text-sm">{contest.description}</p>
+            </div>
+
+            {contestant.comments.length > 0 && (
+              <div>
+                <h4 className="text-xl font-bold text-white mb-2">Comments ({contestant.comments.length})</h4>
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                  {contestant.comments.map(comment => (
+                    <div key={comment.id} className="bg-[#333333] p-3 rounded-lg">
+                      <p className="text-gray-300 text-sm">{comment.text}</p>
+                      <p className="text-gray-500 text-xs mt-1">
+                        {new Date(comment.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="bg-[#2A2A2A] rounded-xl p-6">
+      <h3 className="text-xl font-bold text-[#FFD700] mb-4">Add New Contestant to {contest.title}</h3>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-2 text-gray-400">Name</label>
+          <input
+            type="text"
+            value={newContestant.name}
+            onChange={(e) => setNewContestant({ ...newContestant, name: e.target.value })}
+            className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
+            placeholder="Enter contestant name"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2 text-gray-400">Bio</label>
+          <textarea
+            value={newContestant.bio}
+            onChange={(e) => setNewContestant({ ...newContestant, bio: e.target.value })}
+            className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
+            rows={3}
+            placeholder="Enter contestant bio/description"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2 text-gray-400">Image URL</label>
+          <input
+            type="text"
+            value={newContestant.image}
+            onChange={(e) => setNewContestant({ ...newContestant, image: e.target.value })}
+            className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
+            placeholder="Enter image URL"
+            required
+          />
+        </div>
+
+        <button
+          type="submit"
+          className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3 rounded-lg font-medium transition-colors"
+        >
+          Add Contestant
+        </button>
+      </form>
+    </div>
+  );
+};
+
 type Contest = {
   id: string;
   title: string;
@@ -703,7 +828,15 @@ function EntertainmentWebsite() {
   };
 
   // Contestant Details View
-  const ContestantDetails = ({ contestant, contest }: { contestant: Contestant, contest: Contest }) => {
+  const ContestantDetails = ({
+    contestant,
+    contest,
+    showVoteInfo = true
+  }: {
+    contestant: Contestant,
+    contest: Contest,
+    showVoteInfo?: boolean
+  }) => {
     return (
       <div className="bg-[#2A2A2A] rounded-xl p-6">
         <div className="flex flex-col md:flex-row gap-6">
@@ -720,10 +853,6 @@ function EntertainmentWebsite() {
             <div className="mt-4 text-center">
               <h3 className="text-xl font-bold text-[#FFD700]">{contestant.name}</h3>
               <p className="text-gray-300 capitalize">{contestant.category}</p>
-              <div className="mt-2">
-                <span className="text-lg font-bold text-[#FFD700]">{contestant.votes} votes</span>
-                <div className="text-sm text-gray-400">₦{contestant.amountGained.toLocaleString()} raised</div>
-              </div>
             </div>
           </div>
           <div className="md:w-2/3">
@@ -942,230 +1071,6 @@ function EntertainmentWebsite() {
                 </button>
               </div>
             </div>
-            {/* Contests Table */}
-
-            {/* Contestants Table Section */}
-            <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] mb-8 overflow-hidden">
-              <div className="p-6 border-b border-[#333333]">
-                <h2 className="text-xl font-bold text-[#FFD700]">All Contestants</h2>
-                <p className="text-gray-400 text-sm">Click on any contestant to view detailed information</p>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-[#333333]">
-                  <thead className="bg-[#333333]">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Contestant</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Contest</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Votes</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount Raised</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Comments</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-[#2A2A2A] divide-y divide-[#333333]">
-                    {contests.flatMap(contest =>
-                      contest.contestants.map(contestant => (
-                        <tr
-                          key={`${contest.id}-${contestant.id}`}
-                          className="hover:bg-[#333333] transition-colors cursor-pointer"
-                          onClick={() => {
-                            setSelectedContest(contest);
-                            setSelectedContestant(contestant);
-                          }}
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10 rounded-full overflow-hidden">
-                                <Image
-                                  src={contestant.image}
-                                  alt={contestant.name}
-                                  width={40}
-                                  height={40}
-                                  className="h-full w-full object-cover"
-                                  unoptimized
-                                />
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-white">{contestant.name}</div>
-                                <div className="text-sm text-gray-400 line-clamp-1">{contestant.bio}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-white">{contest.title}</div>
-                            <div className="text-xs text-gray-400">{contest.category}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-[#FFD700] font-bold">
-                            {contestant.votes}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-green-400">
-                            ₦{contestant.amountGained.toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                            {contestant.comments.length}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right">
-                            <span className={`px-2 py-1 text-xs rounded-full ${contest.isActive ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'}`}>
-                              {contest.isActive ? 'Active' : 'Inactive'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Contestant Details Modal */}
-            {selectedContestant && selectedContest && (
-              <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-                <div className="bg-[#2A2A2A] rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-                  <div className="sticky top-0 bg-[#2A2A2A] z-10 p-4 border-b border-[#333333] flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-[#FFD700]">
-                      Contestant Details: {selectedContestant.name}
-                    </h2>
-                    <button
-                      onClick={() => {
-                        setSelectedContestant(null);
-                        setSelectedContest(null);
-                      }}
-                      className="text-gray-400 hover:text-[#FFD700] p-1 rounded-full"
-                    >
-                      <FiX size={24} />
-                    </button>
-                  </div>
-
-                  <div className="p-6">
-                    <div className="flex flex-col md:flex-row gap-6">
-                      {/* Left Column - Contestant Info */}
-                      <div className="md:w-1/3">
-                        <div className="relative h-64 w-full rounded-lg overflow-hidden mb-4">
-                          <Image
-                            src={selectedContestant.image}
-                            alt={selectedContestant.name}
-                            layout="fill"
-                            objectFit="cover"
-                            unoptimized
-                          />
-                        </div>
-
-                        <div className="bg-[#333333] p-4 rounded-lg mb-4">
-                          <h3 className="text-lg font-bold text-[#FFD700] mb-2">Voting Stats</h3>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-sm text-gray-400">Total Votes</p>
-                              <p className="text-xl font-bold text-white">{selectedContestant.votes}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-400">Amount Raised</p>
-                              <p className="text-xl font-bold text-green-400">₦{selectedContestant.amountGained.toLocaleString()}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-[#333333] p-4 rounded-lg">
-                          <h3 className="text-lg font-bold text-[#FFD700] mb-2">Contest Info</h3>
-                          <p className="text-white font-medium">{selectedContest.title}</p>
-                          <p className="text-gray-300 text-sm mb-2">{selectedContest.description}</p>
-                          <p className="text-gray-400 text-xs">Category: {selectedContest.category}</p>
-                          <p className="text-gray-400 text-xs">Status:
-                            <span className={`ml-1 px-2 py-1 rounded-full ${selectedContest.isActive ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'}`}>
-                              {selectedContest.isActive ? 'Active' : 'Inactive'}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Right Column - Bio and Comments */}
-                      <div className="md:w-2/3">
-                        <div className="bg-[#333333] p-4 rounded-lg mb-6">
-                          <h3 className="text-lg font-bold text-[#FFD700] mb-2">Biography</h3>
-                          <p className="text-gray-300">{selectedContestant.bio}</p>
-                        </div>
-
-                        <div className="bg-[#333333] p-4 rounded-lg">
-                          <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-[#FFD700]">Voter Comments ({selectedContestant.comments.length})</h3>
-                            <button
-                              onClick={() => {
-                                const newComment = {
-                                  id: Date.now().toString(),
-                                  text: `Sample comment ${selectedContestant.comments.length + 1}`,
-                                  createdAt: new Date()
-                                };
-                                const updatedContests = contests.map(c => {
-                                  if (c.id === selectedContest.id) {
-                                    const updatedContestants = c.contestants.map(ct => {
-                                      if (ct.id === selectedContestant.id) {
-                                        return {
-                                          ...ct,
-                                          comments: [...ct.comments, newComment]
-                                        };
-                                      }
-                                      return ct;
-                                    });
-                                    return { ...c, contestants: updatedContestants };
-                                  }
-                                  return c;
-                                });
-                                setContests(updatedContests);
-                                showToast('Comment Added', 'New sample comment added');
-                              }}
-                              className="text-xs bg-[#4F46E5] text-white px-3 py-1 rounded hover:bg-[#4338CA]"
-                            >
-                              Add Sample Comment
-                            </button>
-                          </div>
-
-                          {selectedContestant.comments.length > 0 ? (
-                            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                              {selectedContestant.comments.map(comment => (
-                                <div key={comment.id} className="bg-[#2A2A2A] p-3 rounded-lg border-l-4 border-[#FFD700]">
-                                  <p className="text-gray-300">{comment.text}</p>
-                                  <p className="text-gray-500 text-xs mt-2">
-                                    {new Date(comment.createdAt).toLocaleString()}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-center py-8 text-gray-400">
-                              <FiInfo className="mx-auto mb-2 text-xl" />
-                              <p>No comments yet</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 flex justify-end space-x-3">
-                      <button
-                        onClick={() => {
-                          setEditingContestant(selectedContestant);
-                          setSelectedContestant(null);
-                        }}
-                        className="px-4 py-2 bg-[#4F46E5] text-white rounded-lg hover:bg-[#4338CA]"
-                      >
-                        <FiEdit2 className="inline mr-2" />
-                        Edit Contestant
-                      </button>
-                      <button
-                        onClick={() => {
-                          deleteContestant(selectedContestant.id);
-                          setSelectedContestant(null);
-                        }}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                      >
-                        <FiTrash2 className="inline mr-2" />
-                        Delete Contestant
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Contests Table */}
             <div className="overflow-x-auto">
@@ -1223,15 +1128,30 @@ function EntertainmentWebsite() {
             </div>
           </div>
 
-          {/* Contestants Section (when a contest is selected) */}
-          {selectedContest && (
-            <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] mb-8 overflow-hidden">
-              <div className="p-6 border-b border-[#333333] flex justify-between items-center">
-                <h2 className="text-xl font-bold text-[#FFD700]">
-                  Contestants for: {selectedContest.title}
-                </h2>
+          {/* Contestant Management Section */}
+          <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] mb-8 overflow-hidden">
+            <div className="p-6 border-b border-[#333333] flex justify-between items-center">
+              <h2 className="text-xl font-bold text-[#FFD700]">Contestant Management</h2>
+              <div className="flex items-center space-x-4">
+                <select
+                  value={selectedContest?.id || ''}
+                  onChange={(e) => {
+                    const contest = contests.find(c => c.id === e.target.value);
+                    setSelectedContest(contest || null);
+                  }}
+                  className="bg-[#333333] border border-[#444444] text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
+                >
+                  <option value="">Select a contest</option>
+                  {contests.map(contest => (
+                    <option key={contest.id} value={contest.id}>{contest.title}</option>
+                  ))}
+                </select>
                 <button
                   onClick={() => {
+                    if (!selectedContest) {
+                      showToast('Error', 'Please select a contest first', 'error');
+                      return;
+                    }
                     setEditingContestant(null);
                     setNewContestant({
                       name: '',
@@ -1245,8 +1165,10 @@ function EntertainmentWebsite() {
                   <span>Add Contestant</span>
                 </button>
               </div>
+            </div>
 
-              {/* Add/Edit Contestant Form */}
+            {/* Add/Edit Contestant Form */}
+            {selectedContest && (
               <div className="p-6 border-b border-[#333333]">
                 <h3 className="text-lg font-medium mb-4 text-[#FFD700]">
                   {editingContestant ? 'Edit Contestant' : 'Add New Contestant'}
@@ -1262,21 +1184,23 @@ function EntertainmentWebsite() {
                         : setNewContestant({ ...newContestant, name: e.target.value })
                       }
                       className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
+                      placeholder="Contestant name"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-400">Bio</label>
-                    <input
-                      type="text"
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-2 text-gray-400">Bio/Description</label>
+                    <textarea
                       value={editingContestant ? editingContestant.bio : newContestant.bio}
                       onChange={(e) => editingContestant
                         ? setEditingContestant({ ...editingContestant, bio: e.target.value })
                         : setNewContestant({ ...newContestant, bio: e.target.value })
                       }
                       className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
-                    />
+                      rows={3}
+                      placeholder="Detailed description about the contestant"
+                    ></textarea>
                   </div>
-                  <div className="md:col-span-2">
+                  <div>
                     <label className="block text-sm font-medium mb-2 text-gray-400">Image URL</label>
                     <input
                       type="text"
@@ -1289,34 +1213,6 @@ function EntertainmentWebsite() {
                       placeholder="Paste image URL here"
                     />
                   </div>
-                  {editingContestant && (
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-gray-400">Votes</label>
-                      <input
-                        type="number"
-                        value={editingContestant.votes}
-                        onChange={(e) => setEditingContestant({
-                          ...editingContestant,
-                          votes: parseInt(e.target.value) || 0
-                        })}
-                        className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
-                      />
-                    </div>
-                  )}
-                  {editingContestant && (
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-gray-400">Amount Gained (₦)</label>
-                      <input
-                        type="number"
-                        value={editingContestant.amountGained}
-                        onChange={(e) => setEditingContestant({
-                          ...editingContestant,
-                          amountGained: parseInt(e.target.value) || 0
-                        })}
-                        className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
-                      />
-                    </div>
-                  )}
                 </div>
                 <div className="flex justify-end mt-4 space-x-3">
                   {editingContestant && (
@@ -1345,8 +1241,10 @@ function EntertainmentWebsite() {
                   </button>
                 </div>
               </div>
+            )}
 
-              {/* Contestants Grid */}
+            {/* Contestants Grid */}
+            {selectedContest && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                 {selectedContest.contestants.map((contestant) => (
                   <div key={contestant.id} className="border border-[#333333] rounded-lg overflow-hidden hover:shadow-md transition-shadow">
@@ -1361,11 +1259,10 @@ function EntertainmentWebsite() {
                     </div>
                     <div className="p-4">
                       <h3 className="font-bold text-lg text-white mb-2">{contestant.name}</h3>
-                      <p className="text-gray-300 text-sm mb-4">{contestant.bio}</p>
+                      <p className="text-gray-300 text-sm mb-4 line-clamp-3">{contestant.bio}</p>
                       <div className="flex justify-between items-center">
-                        <div>
-                          <span className="text-[#FFD700] font-bold">{contestant.votes} votes</span>
-                          <div className="text-xs text-gray-400">₦{contestant.amountGained.toLocaleString()}</div>
+                        <div className="text-sm text-gray-400">
+                          Votes: <span className="text-[#FFD700]">{contestant.votes}</span>
                         </div>
                         <div className="flex space-x-2">
                           <button
@@ -1384,19 +1281,197 @@ function EntertainmentWebsite() {
                           </button>
                         </div>
                       </div>
-                      {contestant.comments.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-[#333333]">
-                          <h4 className="text-sm font-medium text-gray-400 mb-1">Comments ({contestant.comments.length})</h4>
-                          <div className="max-h-20 overflow-y-auto">
-                            {contestant.comments.map(comment => (
-                              <p key={comment.id} className="text-xs text-gray-500 mb-1">- {comment.text}</p>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Contestants Table Section */}
+          <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] mb-8 overflow-hidden">
+            <div className="p-6 border-b border-[#333333]">
+              <h2 className="text-xl font-bold text-[#FFD700]">All Contestants</h2>
+              <p className="text-gray-400 text-sm">Click on any contestant to view detailed information</p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-[#333333]">
+                <thead className="bg-[#333333]">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Contestant</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Contest</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Votes</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount Raised</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Comments</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-[#2A2A2A] divide-y divide-[#333333]">
+                  {contests.flatMap(contest =>
+                    contest.contestants.map(contestant => (
+                      <tr
+                        key={`${contest.id}-${contestant.id}`}
+                        className="hover:bg-[#333333] transition-colors cursor-pointer"
+                        onClick={() => {
+                          setSelectedContest(contest);
+                          setSelectedContestant(contestant);
+                        }}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10 rounded-full overflow-hidden">
+                              <Image
+                                src={contestant.image}
+                                alt={contestant.name}
+                                width={40}
+                                height={40}
+                                className="h-full w-full object-cover"
+                                unoptimized
+                              />
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-white">{contestant.name}</div>
+                              <div className="text-sm text-gray-400 line-clamp-1">{contestant.bio}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-white">{contest.title}</div>
+                          <div className="text-xs text-gray-400">{contest.category}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#FFD700] font-bold">
+                          {contestant.votes}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-green-400">
+                          ₦{contestant.amountGained.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                          {contestant.comments.length}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Contestant Details Modal */}
+          {selectedContestant && selectedContest && (
+            <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+              <div className="bg-[#2A2A2A] rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+                <div className="sticky top-0 bg-[#2A2A2A] z-10 p-4 border-b border-[#333333] flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-[#FFD700]">
+                    Contestant Details: {selectedContestant.name}
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setSelectedContestant(null);
+                      setSelectedContest(null);
+                    }}
+                    className="text-gray-400 hover:text-[#FFD700] p-1 rounded-full"
+                  >
+                    <FiX size={24} />
+                  </button>
+                </div>
+
+                <div className="p-6">
+                  <div className="flex flex-col md:flex-row gap-6">
+                    {/* Left Column - Contestant Info */}
+                    <div className="md:w-1/3">
+                      <div className="relative h-64 w-full rounded-lg overflow-hidden mb-4">
+                        <Image
+                          src={selectedContestant.image}
+                          alt={selectedContestant.name}
+                          layout="fill"
+                          objectFit="cover"
+                          unoptimized
+                        />
+                      </div>
+
+                      <div className="bg-[#333333] p-4 rounded-lg mb-4">
+                        <h3 className="text-lg font-bold text-[#FFD700] mb-2">Voting Stats</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-400">Total Votes</p>
+                            <p className="text-xl font-bold text-white">{selectedContestant.votes}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-400">Amount Raised</p>
+                            <p className="text-xl font-bold text-green-400">₦{selectedContestant.amountGained.toLocaleString()}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#333333] p-4 rounded-lg">
+                        <h3 className="text-lg font-bold text-[#FFD700] mb-2">Contest Info</h3>
+                        <p className="text-white font-medium">{selectedContest.title}</p>
+                        <p className="text-gray-300 text-sm mb-2">{selectedContest.description}</p>
+                        <p className="text-gray-400 text-xs">Category: {selectedContest.category}</p>
+                        <p className="text-gray-400 text-xs">Status:
+                          <span className={`ml-1 px-2 py-1 rounded-full ${selectedContest.isActive ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'}`}>
+                            {selectedContest.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Right Column - Bio and Comments */}
+                    <div className="md:w-2/3">
+                      <div className="bg-[#333333] p-4 rounded-lg mb-6">
+                        <h3 className="text-lg font-bold text-[#FFD700] mb-2">Biography</h3>
+                        <p className="text-gray-300">{selectedContestant.bio}</p>
+                      </div>
+
+                      <div className="bg-[#333333] p-4 rounded-lg">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-lg font-bold text-[#FFD700]">Voter Comments ({selectedContestant.comments.length})</h3>
+                        </div>
+
+                        {selectedContestant.comments.length > 0 ? (
+                          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                            {selectedContestant.comments.map(comment => (
+                              <div key={comment.id} className="bg-[#2A2A2A] p-3 rounded-lg border-l-4 border-[#FFD700]">
+                                <p className="text-gray-300">{comment.text}</p>
+                                <p className="text-gray-500 text-xs mt-2">
+                                  {new Date(comment.createdAt).toLocaleString()}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-400">
+                            <FiInfo className="mx-auto mb-2 text-xl" />
+                            <p>No comments yet</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end space-x-3">
+                    <button
+                      onClick={() => {
+                        setEditingContestant(selectedContestant);
+                        setSelectedContestant(null);
+                      }}
+                      className="px-4 py-2 bg-[#4F46E5] text-white rounded-lg hover:bg-[#4338CA]"
+                    >
+                      <FiEdit2 className="inline mr-2" />
+                      Edit Contestant
+                    </button>
+                    <button
+                      onClick={() => {
+                        deleteContestant(selectedContestant.id);
+                        setSelectedContestant(null);
+                      }}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    >
+                      <FiTrash2 className="inline mr-2" />
+                      Delete Contestant
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1671,22 +1746,16 @@ function EntertainmentWebsite() {
                 <div className="p-4">
                   <h3 className="text-xl font-bold text-white mb-2">{contestant.name}</h3>
                   <p className="text-gray-300 mb-4">{contestant.bio}</p>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className="text-[#FFD700] font-bold">{contestant.votes} votes</span>
-                      <div className="text-xs text-gray-400">₦{contestant.amountGained.toLocaleString()}</div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedContestant(contestant);
-                        setSelectedContest(viewingContest);
-                        setShowVoteDialog(true);
-                      }}
-                      className="bg-[#FFD700] text-[#1A1A1A] px-4 py-1 rounded-full hover:bg-[#E6C200] transition-colors"
-                    >
-                      Vote Now
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedContestant(contestant);
+                      setSelectedContest(viewingContest);
+                      setShowVoteDialog(true);
+                    }}
+                    className="w-full bg-[#FFD700] text-[#1A1A1A] py-2 rounded-full font-bold hover:bg-[#E6C200] transition-colors cursor-pointer"
+                  >
+                    Vote Now
+                  </button>
                 </div>
               </div>
             ))}
@@ -2008,7 +2077,7 @@ function EntertainmentWebsite() {
         <section id="contestants" className="py-16 bg-[#1A1A1A]">
           <div className="container mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center text-[#FFD700]">
-              Vote for Contestants
+              Featured Contestants
             </h2>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
@@ -2017,12 +2086,11 @@ function EntertainmentWebsite() {
                   <div
                     className="w-full h-20 md:w-24 md:h-24 rounded-full overflow-hidden mx-auto mb-3 border-2 border-[#FFD700] cursor-pointer hover:shadow-lg transition-shadow"
                     onClick={() => {
-                      // Find the contest that includes this contestant
                       const contest = contests.find((c) =>
                         c.contestants.some((ct) => ct.id === contestant.id)
                       );
                       setSelectedContestant(contestant);
-                      setSelectedContest(contest || null); // Set the contest or null if not found
+                      setSelectedContest(contest || null);
                       setShowVoteDialog(true);
                     }}
                   >
@@ -2039,17 +2107,16 @@ function EntertainmentWebsite() {
                   <p className="text-sm text-gray-400 capitalize">{contestant.category}</p>
                   <button
                     onClick={() => {
-                      // Find the contest that includes this contestant
                       const contest = contests.find((c) =>
                         c.contestants.some((ct) => ct.id === contestant.id)
                       );
                       setSelectedContestant(contestant);
-                      setSelectedContest(contest || null); // Set the contest or null if not found
+                      setSelectedContest(contest || null);
                       setShowVoteDialog(true);
                     }}
                     className="mt-2 text-xs bg-[#FFD700] text-[#1A1A1A] px-3 py-1 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105 cursor-pointer"
                   >
-                    Vote ({contestant.votes})
+                    Vote Now
                   </button>
                 </div>
               ))}
@@ -2243,8 +2310,8 @@ function EntertainmentWebsite() {
 
       {/* Vote Dialog */}
       {showVoteDialog && selectedContestant && selectedContest && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 z-40 flex items-center justify-center p-4">
-          <div className="bg-[#2A2A2A] rounded-xl max-w-md w-full p-6 shadow-2xl">
+        <div className="fixed inset-0 bg-black/20  z-40 flex items-center justify-center p-4">
+          <div className="bg-[#2A2A2A] rounded-xl h-fit max-w-md w-full p-6 shadow-2xl">
             <div className="flex justify-between items-start mb-4">
               <h2 className="text-xl font-bold text-[#FFD700]">Vote for {selectedContestant.name}</h2>
               <button
@@ -2255,7 +2322,11 @@ function EntertainmentWebsite() {
               </button>
             </div>
 
-            <ContestantDetails contestant={selectedContestant} contest={selectedContest} />
+            <ContestantDetails
+              contestant={selectedContestant}
+              contest={selectedContest}
+              showVoteInfo={false}
+            />
 
             <div className="mt-6">
               <label className="block text-sm font-medium mb-2 text-gray-300">
