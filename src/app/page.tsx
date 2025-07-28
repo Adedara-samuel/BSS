@@ -38,18 +38,109 @@ const AddContestantForm = ({
     bio: '',
     image: '',
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newContestant.name && newContestant.image) {
-      onAddContestant(newContestant);
+
+    // In a real app, you would upload the image file to a storage service here
+    // For this example, we'll just use the preview URL as a placeholder
+    const imageUrl = imagePreview || '';
+
+    if (newContestant.name && imageUrl) {
+      onAddContestant({
+        ...newContestant,
+        image: imageUrl
+      });
       setNewContestant({
         name: '',
         bio: '',
         image: '',
       });
+      setImageFile(null);
+      setImagePreview(null);
     }
   };
+
+  return (
+    <div className="bg-[#2A2A2A] rounded-xl p-6">
+      <h3 className="text-xl font-bold text-[#FFD700] mb-4">Add New Contestant to {contest.title}</h3>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-2 text-gray-400">Name</label>
+          <input
+            type="text"
+            value={newContestant.name}
+            onChange={(e) => setNewContestant({ ...newContestant, name: e.target.value })}
+            className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
+            placeholder="Enter contestant name"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2 text-gray-400">Bio</label>
+          <textarea
+            value={newContestant.bio}
+            onChange={(e) => setNewContestant({ ...newContestant, bio: e.target.value })}
+            className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
+            rows={3}
+            placeholder="Enter contestant bio/description"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2 text-gray-400">Image</label>
+          <div className="flex items-center space-x-4">
+            {imagePreview ? (
+              <div className="relative h-20 w-20 rounded-lg overflow-hidden">
+                <Image
+                  src={imagePreview}
+                  alt="Preview"
+                  layout="fill"
+                  objectFit="cover"
+                  unoptimized
+                />
+              </div>
+            ) : (
+              <div className="h-20 w-20 border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center">
+                <FiPlus className="text-gray-400" />
+              </div>
+            )}
+            <label className="cursor-pointer">
+              <span className="bg-[#4F46E5] hover:bg-[#4338CA] text-white py-2 px-4 rounded-lg transition-colors">
+                Upload Image
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+                required
+              />
+            </label>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3 rounded-lg font-medium transition-colors"
+        >
+          Add Contestant
+        </button>
+      </form>
+    </div>
+  );
+
 
   const ContestantDetailsView = ({ contestant, contest }: { contestant: Contestant, contest: Contest }) => {
     return (
@@ -68,6 +159,10 @@ const AddContestantForm = ({
             <div className="mt-4 text-center">
               <h3 className="text-xl font-bold text-[#FFD700]">{contestant.name}</h3>
               <p className="text-gray-300 capitalize">{contestant.category}</p>
+              <div className="mt-4 bg-[#333333] p-3 rounded-lg">
+                <p className="text-[#FFD700] font-bold">Votes: {contestant.votes}</p>
+                <p className="text-green-400">Amount Raised: ₦{contestant.amountGained.toLocaleString()}</p>
+              </div>
             </div>
           </div>
           <div className="md:w-2/3">
@@ -334,6 +429,7 @@ function EntertainmentWebsite() {
   const [showPassword, setShowPassword] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [viewingContest, setViewingContest] = useState<Contest | null>(null);
+  const [showAddContestant, setShowAddContestant] = useState(false);
   const [PaystackButton, setPaystackButton] = useState<any>(null);
   const [toasts, setToasts] = useState<{ id: string; title: string; description: string; type: 'success' | 'error' }[]>([]);
 
@@ -407,25 +503,25 @@ function EntertainmentWebsite() {
       },
       {
         id: '2',
-        title: 'Best Department Award',
-        description: 'Vote for the best performing department this semester',
+        title: 'Most Popular Lecturer',
+        description: 'Vote for the most popular lecturer this semester',
         category: 'University Wide',
         isActive: true,
         contestants: [
           {
             id: '3',
-            name: 'Computer Science',
-            bio: 'Department of Computer Science',
-            image: 'https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
+            name: 'Dr. Adebayo Johnson',
+            bio: 'Senior Lecturer with 15 years experience in Media Studies',
+            image: 'https://images.unsplash.com/photo-1580894732444-8ecded7900cd?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
             votes: 210,
             amountGained: 21000,
             comments: []
           },
           {
             id: '4',
-            name: 'Mass Communication',
-            bio: 'Department of Mass Communication',
-            image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
+            name: 'Prof. Grace Oluwale',
+            bio: 'Professor of Communication and Media Arts',
+            image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1976&q=80',
             votes: 185,
             amountGained: 18500,
             comments: []
@@ -507,8 +603,20 @@ function EntertainmentWebsite() {
     publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || 'pk_test_your_public_key',
   };
 
-  const handleVotePayment = () => {
-    if (PaystackButton && selectedContestant && selectedContest) {
+  const [isPaystackReady, setIsPaystackReady] = useState(false);
+
+  const handleVotePayment = async () => {
+    if (!selectedContestant || !selectedContest) {
+      showToast('Error', 'Please select a contestant to vote for', 'error');
+      return;
+    }
+
+    if (!isPaystackReady) {
+      showToast('Processing', 'Payment system is initializing, please wait...');
+      return;
+    }
+
+    try {
       const initializePayment = PaystackButton(config);
       initializePayment({
         onSuccess: (reference: any) => {
@@ -567,9 +675,9 @@ function EntertainmentWebsite() {
           console.log('Payment closed');
         }
       });
-    } else {
-      console.error('Paystack not loaded yet');
-      showToast('Payment Error', 'Payment system is not ready. Please try again later.', 'error');
+    } catch (error) {
+      console.error('Payment error:', error);
+      showToast('Payment Error', 'Failed to process payment. Please try again.', 'error');
     }
   };
 
@@ -813,7 +921,6 @@ function EntertainmentWebsite() {
     { id: 'about', label: 'About' },
     { id: 'services', label: 'Services' },
     { id: 'events', label: 'Events' },
-    { id: 'contestants', label: 'Contestants' },
     { id: 'contests', label: 'Contests' },
     { id: 'contact', label: 'Contact' },
   ];
@@ -1069,59 +1176,422 @@ function EntertainmentWebsite() {
             </div>
 
             {/* Contests Table */}
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-[#333333]">
-                <thead className="bg-[#333333]">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Title</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Category</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Contestants</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-[#2A2A2A] divide-y divide-[#333333]">
-                  {contests.map((contest) => (
-                    <tr key={contest.id} className="hover:bg-[#333333] transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-white">{contest.title}</div>
-                        <div className="text-sm text-gray-400 line-clamp-1">{contest.description}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 capitalize">{contest.category}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{contest.contestants.length}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded-full ${contest.isActive ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'}`}>
-                          {contest.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => {
-                            setEditingContest(contest);
-                            setSelectedContest(contest);
-                          }}
-                          className="text-[#FFD700] hover:text-[#E6C200] mr-4"
-                        >
+            {/* Contests Section */}
+            <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] mb-8 overflow-hidden">
+              <div className="p-6 border-b border-[#333333] flex justify-between items-center">
+                <h2 className="text-xl font-bold text-[#FFD700]">Contests Management</h2>
+                <button
+                  onClick={() => {
+                    setEditingContest(null);
+                    setNewContest({
+                      title: '',
+                      description: '',
+                      category: '',
+                      isActive: true
+                    });
+                  }}
+                  className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <FiPlus />
+                  <span>Add Contest</span>
+                </button>
+              </div>
+
+              {/* Add/Edit Contest Form */}
+              {(editingContest || newContest.title) && (
+                <div className="p-6 border-b border-[#333333]">
+                  <h3 className="text-lg font-medium mb-4 text-[#FFD700]">
+                    {editingContest ? 'Edit Contest' : 'Add New Contest'}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-400">Title</label>
+                      <input
+                        type="text"
+                        value={editingContest ? editingContest.title : newContest.title}
+                        onChange={(e) => editingContest
+                          ? setEditingContest({ ...editingContest, title: e.target.value })
+                          : setNewContest({ ...newContest, title: e.target.value })
+                        }
+                        className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-400">Category</label>
+                      <input
+                        type="text"
+                        value={editingContest ? editingContest.category : newContest.category}
+                        onChange={(e) => editingContest
+                          ? setEditingContest({ ...editingContest, category: e.target.value })
+                          : setNewContest({ ...newContest, category: e.target.value })
+                        }
+                        className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
+                        placeholder="E.g. BOUESTI MASS COM"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium mb-2 text-gray-400">Description</label>
+                      <textarea
+                        value={editingContest ? editingContest.description : newContest.description}
+                        onChange={(e) => editingContest
+                          ? setEditingContest({ ...editingContest, description: e.target.value })
+                          : setNewContest({ ...newContest, description: e.target.value })
+                        }
+                        className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
+                        rows={3}
+                      ></textarea>
+                    </div>
+                    <div>
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingContest ? editingContest.isActive : newContest.isActive}
+                          onChange={(e) => editingContest
+                            ? setEditingContest({ ...editingContest, isActive: e.target.checked })
+                            : setNewContest({ ...newContest, isActive: e.target.checked })
+                          }
+                          className="form-checkbox h-5 w-5 text-[#4F46E5] rounded focus:ring-[#4F46E5]"
+                        />
+                        <span className="text-gray-400">Active Contest</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-4 space-x-3">
+                    {editingContest && (
+                      <button
+                        onClick={() => setEditingContest(null)}
+                        className="px-4 py-2 border border-[#444444] text-gray-300 rounded-lg hover:bg-[#333333] transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      onClick={editingContest ? updateContest : addContest}
+                      className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-6 py-2 rounded-lg transition-colors"
+                    >
+                      {editingContest ? (
+                        <>
                           <FiEdit2 />
-                        </button>
-                        <button
-                          onClick={() => toggleContestStatus(contest.id)}
-                          className={`mr-4 ${contest.isActive ? 'text-yellow-500 hover:text-yellow-400' : 'text-green-500 hover:text-green-400'}`}
-                        >
-                          {contest.isActive ? 'Deactivate' : 'Activate'}
-                        </button>
-                        <button
-                          onClick={() => deleteContest(contest.id)}
-                          className="text-red-600 hover:text-red-500"
-                        >
-                          <FiTrash2 />
-                        </button>
-                      </td>
+                          <span>Update Contest</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiPlus />
+                          <span>Add Contest</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Contests Table */}
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-[#333333]">
+                  <thead className="bg-[#333333]">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Title</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Category</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Contestants</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-[#2A2A2A] divide-y divide-[#333333]">
+                    {contests.map((contest) => (
+                      <tr key={contest.id} className="hover:bg-[#333333] transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="font-medium text-white cursor-pointer" onClick={() => setSelectedContest(contest)}>
+                            {contest.title}
+                            <div className="text-sm text-gray-400 line-clamp-1">{contest.description}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 capitalize">{contest.category}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{contest.contestants.length}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs rounded-full ${contest.isActive ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'}`}>
+                            {contest.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button
+                            onClick={() => {
+                              setEditingContest(contest);
+                              setSelectedContest(contest);
+                            }}
+                            className="text-[#FFD700] hover:text-[#E6C200] mr-4"
+                          >
+                            <FiEdit2 />
+                          </button>
+                          <button
+                            onClick={() => toggleContestStatus(contest.id)}
+                            className={`mr-4 ${contest.isActive ? 'text-yellow-500 hover:text-yellow-400' : 'text-green-500 hover:text-green-400'}`}
+                          >
+                            {contest.isActive ? 'Deactivate' : 'Activate'}
+                          </button>
+                          <button
+                            onClick={() => deleteContest(contest.id)}
+                            className="text-red-600 hover:text-red-500"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
+
+            {/* Contest Details Drawer */}
+            {selectedContest && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-end">
+                <div className="bg-[#2A2A2A] w-full max-w-2xl h-full overflow-y-auto">
+                  <div className="sticky top-0 bg-[#2A2A2A] z-10 p-4 border-b border-[#333333] flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-[#FFD700]">
+                      {selectedContest.title} - Contestants
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setSelectedContest(null);
+                        setEditingContestant(null);
+                        setNewContestant({
+                          name: '',
+                          bio: '',
+                          image: '',
+                        });
+                      }}
+                      className="text-gray-400 hover:text-[#FFD700] p-1 rounded-full"
+                    >
+                      <FiX size={24} />
+                    </button>
+                  </div>
+
+                  <div className="p-6">
+                    {/* Contest Info */}
+                    <div className="bg-[#333333] p-4 rounded-lg mb-6">
+                      <h3 className="text-lg font-bold text-[#FFD700] mb-2">Contest Information</h3>
+                      <p className="text-gray-300 mb-2">{selectedContest.description}</p>
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div>
+                          <p className="text-sm text-gray-400">Category</p>
+                          <p className="text-white">{selectedContest.category}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-400">Status</p>
+                          <p className={`${selectedContest.isActive ? 'text-green-400' : 'text-gray-400'}`}>
+                            {selectedContest.isActive ? 'Active' : 'Inactive'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-400">Total Contestants</p>
+                          <p className="text-white">{selectedContest.contestants.length}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-400">Total Votes</p>
+                          <p className="text-white">
+                            {selectedContest.contestants.reduce((sum, c) => sum + c.votes, 0)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Add Contestant Form */}
+                    <div className="bg-[#333333] p-4 rounded-lg mb-6">
+                      <h3 className="text-lg font-bold text-[#FFD700] mb-4">
+                        {editingContestant ? 'Edit Contestant' : 'Add New Contestant'}
+                      </h3>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2 text-gray-400">Name</label>
+                          <input
+                            type="text"
+                            value={editingContestant ? editingContestant.name : newContestant.name}
+                            onChange={(e) => editingContestant
+                              ? setEditingContestant({ ...editingContestant, name: e.target.value })
+                              : setNewContestant({ ...newContestant, name: e.target.value })
+                            }
+                            className="w-full p-3 bg-[#2A2A2A] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
+                            placeholder="Enter contestant name"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium mb-2 text-gray-400">Bio</label>
+                          <textarea
+                            value={editingContestant ? editingContestant.bio : newContestant.bio}
+                            onChange={(e) => editingContestant
+                              ? setEditingContestant({ ...editingContestant, bio: e.target.value })
+                              : setNewContestant({ ...newContestant, bio: e.target.value })
+                            }
+                            className="w-full p-3 bg-[#2A2A2A] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
+                            rows={3}
+                            placeholder="Enter contestant bio/description"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium mb-2 text-gray-400">Image</label>
+                          <div className="flex items-center space-x-4">
+                            {(editingContestant?.image || newContestant.image) ? (
+                              <div className="relative h-20 w-20 rounded-lg overflow-hidden">
+                                <Image
+                                  src={editingContestant?.image || newContestant.image}
+                                  alt="Preview"
+                                  layout="fill"
+                                  objectFit="cover"
+                                  unoptimized
+                                />
+                              </div>
+                            ) : (
+                              <div className="h-20 w-20 border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center">
+                                <FiPlus className="text-gray-400" />
+                              </div>
+                            )}
+                            <label className="cursor-pointer">
+                              <span className="bg-[#4F46E5] hover:bg-[#4338CA] text-white py-2 px-4 rounded-lg transition-colors">
+                                Upload Image
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    const file = e.target.files[0];
+                                    const imageUrl = URL.createObjectURL(file);
+                                    if (editingContestant) {
+                                      setEditingContestant({ ...editingContestant, image: imageUrl });
+                                    } else {
+                                      setNewContestant({ ...newContestant, image: imageUrl });
+                                    }
+                                  }
+                                }}
+                                className="hidden"
+                                required={!editingContestant}
+                              />
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end space-x-3">
+                          {editingContestant && (
+                            <button
+                              onClick={() => setEditingContestant(null)}
+                              className="px-4 py-2 border border-[#444444] text-gray-300 rounded-lg hover:bg-[#333333] transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              if (editingContestant) {
+                                updateContestant();
+                              } else {
+                                addContestant();
+                              }
+                            }}
+                            className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-6 py-2 rounded-lg transition-colors"
+                          >
+                            {editingContestant ? (
+                              <>
+                                <FiEdit2 />
+                                <span>Update Contestant</span>
+                              </>
+                            ) : (
+                              <>
+                                <FiPlus />
+                                <span>Add Contestant</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contestants List */}
+                    <h3 className="text-xl font-bold text-[#FFD700] mb-4">Contestants ({selectedContest.contestants.length})</h3>
+
+                    {selectedContest.contestants.length === 0 ? (
+                      <div className="bg-[#333333] p-8 rounded-lg text-center">
+                        <FiUser className="mx-auto text-gray-500 mb-4 text-3xl" />
+                        <p className="text-gray-400">No contestants added yet</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {selectedContest.contestants.map((contestant) => (
+                          <div key={contestant.id} className="bg-[#333333] rounded-lg overflow-hidden">
+                            <div className="flex flex-col md:flex-row">
+                              <div className="md:w-1/4">
+                                <div className="relative h-48 md:h-full">
+                                  <Image
+                                    src={contestant.image}
+                                    alt={contestant.name}
+                                    layout="fill"
+                                    objectFit="cover"
+                                    unoptimized
+                                  />
+                                </div>
+                              </div>
+                              <div className="md:w-3/4 p-4">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <h4 className="text-lg font-bold text-[#FFD700]">{contestant.name}</h4>
+                                    <p className="text-gray-300 text-sm mb-4">{contestant.bio}</p>
+                                  </div>
+                                  <div className="flex space-x-2">
+                                    <button
+                                      onClick={() => setEditingContestant(contestant)}
+                                      className="text-[#4F46E5] hover:text-[#4338CA]"
+                                    >
+                                      <FiEdit2 />
+                                    </button>
+                                    <button
+                                      onClick={() => deleteContestant(contestant.id)}
+                                      className="text-red-600 hover:text-red-500"
+                                    >
+                                      <FiTrash2 />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4 mt-4">
+                                  <div className="bg-[#2A2A2A] p-2 rounded">
+                                    <p className="text-sm text-gray-400">Votes</p>
+                                    <p className="text-[#FFD700] font-bold">{contestant.votes}</p>
+                                  </div>
+                                  <div className="bg-[#2A2A2A] p-2 rounded">
+                                    <p className="text-sm text-gray-400">Amount Raised</p>
+                                    <p className="text-green-400">₦{contestant.amountGained.toLocaleString()}</p>
+                                  </div>
+                                </div>
+
+                                {contestant.comments.length > 0 && (
+                                  <div className="mt-4">
+                                    <h5 className="text-sm font-bold text-gray-300 mb-2">Recent Comments ({contestant.comments.length})</h5>
+                                    <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+                                      {contestant.comments.slice(0, 3).map(comment => (
+                                        <div key={comment.id} className="bg-[#2A2A2A] p-2 rounded text-sm">
+                                          <p className="text-gray-300">{comment.text}</p>
+                                          <p className="text-gray-500 text-xs mt-1">
+                                            {new Date(comment.createdAt).toLocaleString()}
+                                          </p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Contestant Management Section */}
@@ -1142,24 +1612,6 @@ function EntertainmentWebsite() {
                     <option key={contest.id} value={contest.id}>{contest.title}</option>
                   ))}
                 </select>
-                <button
-                  onClick={() => {
-                    if (!selectedContest) {
-                      showToast('Error', 'Please select a contest first', 'error');
-                      return;
-                    }
-                    setEditingContestant(null);
-                    setNewContestant({
-                      name: '',
-                      bio: '',
-                      image: '',
-                    });
-                  }}
-                  className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-4 py-2 rounded-lg transition-colors"
-                >
-                  <FiPlus />
-                  <span>Add Contestant</span>
-                </button>
               </div>
             </div>
 
@@ -1282,74 +1734,6 @@ function EntertainmentWebsite() {
                 ))}
               </div>
             )}
-          </div>
-
-          {/* Contestants Table Section */}
-          <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] mb-8 overflow-hidden">
-            <div className="p-6 border-b border-[#333333]">
-              <h2 className="text-xl font-bold text-[#FFD700]">All Contestants</h2>
-              <p className="text-gray-400 text-sm">Click on any contestant to view detailed information</p>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-[#333333]">
-                <thead className="bg-[#333333]">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Contestant</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Contest</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Votes</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount Raised</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Comments</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-[#2A2A2A] divide-y divide-[#333333]">
-                  {contests.flatMap(contest =>
-                    contest.contestants.map(contestant => (
-                      <tr
-                        key={`${contest.id}-${contestant.id}`}
-                        className="hover:bg-[#333333] transition-colors cursor-pointer"
-                        onClick={() => {
-                          setSelectedContest(contest);
-                          setSelectedContestant(contestant);
-                        }}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 rounded-full overflow-hidden">
-                              <Image
-                                src={contestant.image}
-                                alt={contestant.name}
-                                width={40}
-                                height={40}
-                                className="h-full w-full object-cover"
-                                unoptimized
-                              />
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-white">{contestant.name}</div>
-                              <div className="text-sm text-gray-400 line-clamp-1">{contestant.bio}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-white">{contest.title}</div>
-                          <div className="text-xs text-gray-400">{contest.category}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#FFD700] font-bold">
-                          {contestant.votes}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-green-400">
-                          ₦{contestant.amountGained.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                          {contestant.comments.length}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
           </div>
 
           {/* Contestant Details Modal */}
@@ -1705,6 +2089,31 @@ function EntertainmentWebsite() {
   }
 
   // Contest View Modal
+  const handleAddContestant = (contestant: Omit<Contestant, 'id' | 'votes' | 'amountGained' | 'comments'>) => {
+    if (!viewingContest) return;
+
+    const newId = Date.now().toString();
+    const updatedContest = {
+      ...viewingContest,
+      contestants: [
+        ...viewingContest.contestants,
+        {
+          ...contestant,
+          id: newId,
+          votes: 0,
+          amountGained: 0,
+          comments: []
+        }
+      ]
+    };
+
+    setContests(contests.map(c => c.id === viewingContest.id ? updatedContest : c));
+    setViewingContest(updatedContest);
+    setShowAddContestant(false);
+    showToast('Success', 'Contestant added successfully');
+  };
+
+  // Update the contest view rendering
   if (viewingContest) {
     return (
       <div className="min-h-screen bg-[#1A1A1A] text-white p-4">
@@ -1717,15 +2126,19 @@ function EntertainmentWebsite() {
           </button>
 
           <div className="bg-[#2A2A2A] rounded-xl p-6 mb-8">
-            <h1 className="text-3xl font-bold text-[#FFD700] mb-2">{viewingContest.title}</h1>
-            <p className="text-gray-300 mb-4">{viewingContest.description}</p>
-            <div className="flex items-center text-gray-400">
-              <FiAward className="mr-2" />
-              <span>Category: {viewingContest.category}</span>
+            <div className="flex justify-between items-start">
+              <div>
+                <h1 className="text-3xl font-bold text-[#FFD700] mb-2">{viewingContest.title}</h1>
+                <p className="text-gray-300 mb-4">{viewingContest.description}</p>
+                <div className="flex items-center text-gray-400">
+                  <FiAward className="mr-2" />
+                  <span>Category: {viewingContest.category}</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold text-white mb-6">Contestants</h2>
+          <h2 className="text-2xl font-bold text-white mb-6">Contestants ({viewingContest.contestants.length})</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {viewingContest.contestants.map(contestant => (
@@ -1741,17 +2154,66 @@ function EntertainmentWebsite() {
                 </div>
                 <div className="p-4">
                   <h3 className="text-xl font-bold text-white mb-2">{contestant.name}</h3>
-                  <p className="text-gray-300 mb-4">{contestant.bio}</p>
-                  <button
-                    onClick={() => {
-                      setSelectedContestant(contestant);
-                      setSelectedContest(viewingContest);
-                      setShowVoteDialog(true);
-                    }}
-                    className="w-full bg-[#FFD700] text-[#1A1A1A] py-2 rounded-full font-bold hover:bg-[#E6C200] transition-colors cursor-pointer"
-                  >
-                    Vote Now
-                  </button>
+                  <p className="text-gray-300 mb-4 line-clamp-3">{contestant.bio}</p>
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-gray-400">
+                      Votes: <span className="text-[#FFD700]">{contestant.votes}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedContestant(contestant);
+                        setShowVoteDialog(true);
+                      }}
+                      className="bg-[#FFD700] text-[#1A1A1A] px-4 py-1 rounded-full font-bold hover:bg-[#E6C200] transition-colors cursor-pointer"
+                    >
+                      Vote
+                    </button>
+                  </div>
+
+                  {/* Vote Dialog - shown inline when active */}
+                  {showVoteDialog && selectedContestant?.id === contestant.id && (
+                    <div className="mt-4 bg-[#333333] p-4 rounded-lg">
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className="text-lg font-bold text-[#FFD700]">Vote for {contestant.name}</h4>
+                        <button
+                          onClick={() => setShowVoteDialog(false)}
+                          className="text-gray-400 hover:text-white"
+                        >
+                          <FiX />
+                        </button>
+                      </div>
+
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium mb-2 text-gray-300">
+                          Add a comment (optional)
+                        </label>
+                        <textarea
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          className="w-full p-3 bg-[#2A2A2A] border border-[#444444] text-white rounded-lg"
+                          rows={3}
+                          placeholder="Your comment..."
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-3">
+                        <button
+                          onClick={() => setShowVoteDialog(false)}
+                          className="px-4 py-2 border border-gray-600 rounded-full hover:bg-[#3A3A3A] transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleVotePayment}
+                          disabled={!isPaystackReady}
+                          className={`px-4 py-2 bg-[#FFD700] text-[#1A1A1A] rounded-full font-bold hover:bg-[#E6C200] transition-colors ${!isPaystackReady ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                        >
+                          {isPaystackReady ? 'Confirm Vote (₦100)' : 'Loading Payment...'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -2063,57 +2525,6 @@ function EntertainmentWebsite() {
                       Get Tickets
                     </button>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Contestants Section */}
-        <section id="contestants" className="py-16 bg-[#1A1A1A]">
-          <div className="container mx-auto px-4">
-            <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center text-[#FFD700]">
-              Featured Contestants
-            </h2>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-              {contestants.map((contestant) => (
-                <div key={contestant.id} className="text-center">
-                  <div
-                    className="w-full h-20 md:w-24 md:h-24 rounded-full overflow-hidden mx-auto mb-3 border-2 border-[#FFD700] cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => {
-                      const contest = contests.find((c) =>
-                        c.contestants.some((ct) => ct.id === contestant.id)
-                      );
-                      setSelectedContestant(contestant);
-                      setSelectedContest(contest || null);
-                      setShowVoteDialog(true);
-                    }}
-                  >
-                    <Image
-                      src={contestant.image}
-                      alt={contestant.name}
-                      width={96}
-                      height={96}
-                      className="w-full h-full object-cover"
-                      unoptimized
-                    />
-                  </div>
-                  <h3 className="font-medium text-white">{contestant.name}</h3>
-                  <p className="text-sm text-gray-400 capitalize">{contestant.category}</p>
-                  <button
-                    onClick={() => {
-                      const contest = contests.find((c) =>
-                        c.contestants.some((ct) => ct.id === contestant.id)
-                      );
-                      setSelectedContestant(contestant);
-                      setSelectedContest(contest || null);
-                      setShowVoteDialog(true);
-                    }}
-                    className="mt-2 text-xs bg-[#FFD700] text-[#1A1A1A] px-3 py-1 rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105 cursor-pointer"
-                  >
-                    Vote Now
-                  </button>
                 </div>
               ))}
             </div>
