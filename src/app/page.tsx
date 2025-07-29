@@ -1,9 +1,10 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiHome, FiMusic, FiFilm, FiMic, FiSmile, FiUser, FiSearch, FiChevronRight, FiX, FiCalendar, FiMapPin, FiPlus, FiEdit2, FiTrash2, FiLogIn, FiPlayCircle, FiAward, FiLogOut, FiMail, FiPhone, FiInfo, FiMenu, FiDollarSign, FiUsers, FiBarChart2, FiCreditCard, FiEyeOff, FiEye, FiChevronLeft } from 'react-icons/fi';
+import { FiHome, FiMusic, FiFilm, FiMic, FiSmile, FiUser, FiSearch, FiChevronRight, FiX, FiCalendar, FiMapPin, FiPlus, FiEdit2, FiTrash2, FiLogIn, FiPlayCircle, FiAward, FiLogOut, FiMail, FiPhone, FiInfo, FiMenu, FiDollarSign, FiUsers, FiBarChart2, FiCreditCard, FiEyeOff, FiEye, FiChevronLeft, FiUpload, FiPauseCircle } from 'react-icons/fi';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import Image from 'next/image';
@@ -140,7 +141,6 @@ const AddContestantForm = ({
       </form>
     </div>
   );
-
 
   const ContestantDetailsView = ({ contestant, contest }: { contestant: Contestant, contest: Contest }) => {
     return (
@@ -424,6 +424,7 @@ function EntertainmentWebsite() {
     image: '',
   });
   const [editingContest, setEditingContest] = useState<Contest | null>(null);
+  const [showContestForm, setShowContestForm] = useState(false);
   const [editingContestant, setEditingContestant] = useState<Contestant | null>(null);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -596,18 +597,45 @@ function EntertainmentWebsite() {
   }, []);
 
   // Paystack config
-  const config = {
-    reference: new Date().getTime().toString(),
-    email: user?.email || 'user@example.com',
-    amount: 10000, // 100 Naira in kobo
-    publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || 'pk_test_your_public_key',
-  };
-
   const [isPaystackReady, setIsPaystackReady] = useState(false);
 
+  const getPaystackConfig = (amount: number) => ({
+    reference: new Date().getTime().toString(),
+    email: user?.email || 'user@example.com',
+    amount: amount * 100, // Convert to kobo
+    publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || 'pk_test_your_public_key',
+    currency: 'NGN',
+  });
+
+  useEffect(() => {
+    const initializePaystack = async () => {
+      try {
+        const { usePaystackPayment } = await import('react-paystack');
+        setPaystackButton(() => usePaystackPayment);
+        setIsPaystackReady(true);
+      } catch (error) {
+        console.error('Failed to load Paystack:', error);
+        showToast('Error', 'Payment system failed to load', 'error');
+        setIsPaystackReady(false);
+      }
+    };
+
+    initializePaystack();
+  }, []);
+
+  // Add vote amount state
+  const [voteAmount, setVoteAmount] = useState(1); // Default to 1 vote
+  const [voteAmountError, setVoteAmountError] = useState('');
+
+  // Update the handleVotePayment function
   const handleVotePayment = async () => {
     if (!selectedContestant || !selectedContest) {
       showToast('Error', 'Please select a contestant to vote for', 'error');
+      return;
+    }
+
+    if (voteAmount < 1) {
+      setVoteAmountError('You must vote at least once');
       return;
     }
 
@@ -617,7 +645,7 @@ function EntertainmentWebsite() {
     }
 
     try {
-      const initializePayment = PaystackButton(config);
+      const initializePayment = PaystackButton(getPaystackConfig(voteAmount * 100)); // 100 Naira per vote
       initializePayment({
         onSuccess: (reference: any) => {
           // Update votes and amount gained
@@ -627,8 +655,8 @@ function EntertainmentWebsite() {
                 if (c.id === selectedContestant.id) {
                   return {
                     ...c,
-                    votes: c.votes + 1,
-                    amountGained: c.amountGained + 100
+                    votes: c.votes + voteAmount,
+                    amountGained: c.amountGained + (voteAmount * 100)
                   };
                 }
                 return c;
@@ -669,7 +697,8 @@ function EntertainmentWebsite() {
           }
 
           setShowVoteDialog(false);
-          showToast('Vote Successful', `Your vote for ${selectedContestant.name} has been recorded!`);
+          showToast('Vote Successful', `Your ${voteAmount} vote(s) for ${selectedContestant.name} has been recorded!`);
+          setVoteAmount(1); // Reset to default
         },
         onClose: () => {
           console.log('Payment closed');
@@ -712,33 +741,52 @@ function EntertainmentWebsite() {
     }
   };
 
+  // const addContest = () => {
+  //   if (newContest.title && newContest.category) {
+  //     const newId = Date.now().toString();
+  //     setContests([
+  //       ...contests,
+  //       {
+  //         id: newId,
+  //         title: newContest.title,
+  //         description: newContest.description,
+  //         category: newContest.category,
+  //         isActive: newContest.isActive,
+  //         contestants: [],
+  //         createdAt: new Date()
+  //       }
+  //     ]);
+  //     setNewContest({
+  //       title: '',
+  //       description: '',
+  //       category: '',
+  //       isActive: true
+  //     });
+  //     showToast('Contest Added', `${newContest.title} has been added successfully`);
+  //   } else {
+  //     showToast('Error', 'Please fill all required fields', 'error');
+  //   }
+  // };
   const addContest = () => {
-    if (newContest.title && newContest.category) {
-      const newId = Date.now().toString();
-      setContests([
-        ...contests,
-        {
-          id: newId,
-          title: newContest.title,
-          description: newContest.description,
-          category: newContest.category,
-          isActive: newContest.isActive,
-          contestants: [],
-          createdAt: new Date()
-        }
-      ]);
-      setNewContest({
-        title: '',
-        description: '',
-        category: '',
-        isActive: true
-      });
-      showToast('Contest Added', `${newContest.title} has been added successfully`);
-    } else {
-      showToast('Error', 'Please fill all required fields', 'error');
-    }
+  const newContestToAdd: Contest = {
+    id: Date.now().toString(), // Generate unique ID
+    title: newContest.title,
+    description: newContest.description,
+    category: newContest.category,
+    isActive: newContest.isActive,
+    contestants: [],
+    createdAt: new Date(),
   };
-
+  
+  setContests([...contests, newContestToAdd]);
+  setNewContest({
+    title: '',
+    description: '',
+    category: '',
+    isActive: true
+  });
+  setShowContestForm(false);
+};
   const updateContest = () => {
     if (editingContest) {
       setContests(
@@ -754,11 +802,20 @@ function EntertainmentWebsite() {
   const deleteContest = (id: string) => {
     const contest = contests.find(c => c.id === id);
     if (contest) {
-      setContests(contests.filter(c => c.id !== id));
-      showToast('Contest Removed', `${contest.title} has been deleted`);
+      if (window.confirm(`Are you sure you want to delete "${contest.title}"? This action cannot be undone.`)) {
+        setContests(contests.filter(c => c.id !== id));
+        showToast('Contest Removed', `${contest.title} has been deleted`);
+
+        // If we're viewing the deleted contest, clear the view
+        if (viewingContest?.id === id) {
+          setViewingContest(null);
+        }
+        if (selectedContest?.id === id) {
+          setSelectedContest(null);
+        }
+      }
     }
   };
-
   const addContestant = () => {
     if (newContestant.name && newContestant.image && selectedContest) {
       const newId = Date.now().toString();
@@ -818,18 +875,34 @@ function EntertainmentWebsite() {
 
     const contestant = selectedContest.contestants.find(c => c.id === id);
     if (contestant) {
-      const updatedContests = contests.map(contest => {
-        if (contest.id === selectedContest.id) {
-          return {
-            ...contest,
-            contestants: contest.contestants.filter(c => c.id !== id)
-          };
-        }
-        return contest;
-      });
+      if (window.confirm(`Are you sure you want to delete contestant "${contestant.name}"? This action cannot be undone.`)) {
+        const updatedContests = contests.map(contest => {
+          if (contest.id === selectedContest.id) {
+            return {
+              ...contest,
+              contestants: contest.contestants.filter(c => c.id !== id)
+            };
+          }
+          return contest;
+        });
 
-      setContests(updatedContests);
-      showToast('Contestant Removed', `${contestant.name} has been deleted`);
+        setContests(updatedContests);
+
+        // Update the selected contest if it's the current one
+        if (selectedContest) {
+          setSelectedContest({
+            ...selectedContest,
+            contestants: selectedContest.contestants.filter(c => c.id !== id)
+          });
+        }
+
+        // If we're viewing this contestant, clear the view
+        if (selectedContestant?.id === id) {
+          setSelectedContestant(null);
+        }
+
+        showToast('Contestant Removed', `${contestant.name} has been deleted`);
+      }
     }
   };
 
@@ -877,17 +950,19 @@ function EntertainmentWebsite() {
   };
 
   const toggleContestStatus = (contestId: string) => {
-    setContests(contests.map(contest => {
-      if (contest.id === contestId) {
-        const newStatus = !contest.isActive;
-        showToast(
-          newStatus ? 'Contest Activated' : 'Contest Deactivated',
-          `${contest.title} has been ${newStatus ? 'activated' : 'deactivated'}`
-        );
-        return { ...contest, isActive: newStatus };
-      }
-      return contest;
-    }));
+    if (window.confirm(`Are you sure you want to ${contests.find(c => c.id === contestId)?.isActive ? 'deactivate' : 'activate'} this contest?`)) {
+      setContests(contests.map(contest => {
+        if (contest.id === contestId) {
+          const newStatus = !contest.isActive;
+          showToast(
+            newStatus ? 'Contest Activated' : 'Contest Deactivated',
+            `${contest.title} has been ${newStatus ? 'activated' : 'deactivated'}`
+          );
+          return { ...contest, isActive: newStatus };
+        }
+        return contest;
+      }));
+    }
   };
 
   const categories = {
@@ -992,89 +1067,105 @@ function EntertainmentWebsite() {
   if (isAdmin) {
     return (
       <div className="min-h-screen bg-[#1A1A1A] text-gray-100">
-        {/* Admin Header */}
-        <header className="bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] shadow-lg">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-white/10 rounded-lg">
-                <FiAward className="text-white text-xl" />
+        {/* Admin Header - Mobile Optimized */}
+        <header className="bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] shadow-lg sticky top-0 z-50">
+          <div className="container mx-auto px-4 py-3 sm:py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <div className="p-1 sm:p-2 bg-white/10 rounded-lg">
+                  <FiAward className="text-white text-lg sm:text-xl" />
+                </div>
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate max-w-[180px] sm:max-w-none">
+                  BSS Admin Dashboard
+                </h1>
               </div>
-              <h1 className="text-xl md:text-2xl font-bold">BSS Admin Dashboard</h1>
-            </div>
-            <div className="flex items-center space-x-4">
               <button
                 onClick={() => setIsAdmin(false)}
-                className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all duration-200"
+                className="flex items-center space-x-1 sm:space-x-2 bg-white/10 hover:bg-white/20 p-2 sm:px-4 sm:py-2 rounded-lg transition-all duration-200"
               >
                 <FiLogOut className="text-white" />
-                <span className="hidden md:inline">Exit Admin</span>
+                <span className="hidden sm:inline">Exit Admin</span>
               </button>
             </div>
           </div>
         </header>
 
         {/* Admin Main Content */}
-        <main className="container mx-auto px-4 py-8">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-[#2A2A2A] p-6 rounded-xl shadow-sm border border-[#333333] hover:shadow-md transition-shadow cursor-pointer">
+        <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
+          {/* Stats Cards - Stack on mobile */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
+            {/* Total Contests Card */}
+            <div className="bg-[#2A2A2A] p-4 sm:p-6 rounded-lg shadow-sm border border-[#333333]">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-400">Total Contests</p>
-                  <h3 className="text-2xl font-bold mt-1 text-[#FFD700]">{contests.length}</h3>
+                  <p className="text-xs sm:text-sm font-medium text-gray-400">Total Contests</p>
+                  <h3 className="text-xl sm:text-2xl font-bold mt-1 text-[#FFD700]">
+                    {contests.length}
+                  </h3>
                 </div>
-                <div className="p-3 bg-[#4F46E5]/10 rounded-lg">
-                  <FiUsers className="text-[#FFD700] text-xl" />
+                <div className="p-2 sm:p-3 bg-[#4F46E5]/10 rounded-lg">
+                  <FiUsers className="text-[#FFD700] text-lg sm:text-xl" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#2A2A2A] p-6 rounded-xl shadow-sm border border-[#333333] hover:shadow-md transition-shadow cursor-pointer">
+            {/* Total Votes Card */}
+            <div className="bg-[#2A2A2A] p-4 sm:p-6 rounded-lg shadow-sm border border-[#333333]">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-400">Total Votes</p>
-                  <h3 className="text-2xl font-bold mt-1 text-[#7C3AED]">
-                    {
-                      contests.reduce(
-                        (totalVotes: number, contest: Contest) =>
-                          totalVotes + contest.contestants.reduce(
-                            (contestVotes: number, contestant: Contestant) =>
-                              contestVotes + contestant.votes,
-                            0
-                          ),
+                  <p className="text-xs sm:text-sm font-medium text-gray-400">Total Votes</p>
+                  <h3 className="text-xl sm:text-2xl font-bold mt-1 text-[#7C3AED]">
+                    {contests.reduce(
+                      (totalVotes, contest) =>
+                        totalVotes +
+                        contest.contestants.reduce(
+                          (contestVotes, contestant) => contestVotes + contestant.votes,
+                          0
+                        ),
+                      0
+                    )}
+                  </h3>
+                </div>
+                <div className="p-2 sm:p-3 bg-[#7C3AED]/10 rounded-lg">
+                  <FiBarChart2 className="text-[#7C3AED] text-lg sm:text-xl" />
+                </div>
+              </div>
+            </div>
+
+            {/* Total Revenue Card */}
+            <div className="bg-[#2A2A2A] p-4 sm:p-6 rounded-lg shadow-sm border border-[#333333]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm font-medium text-gray-400">Total Revenue</p>
+                  <h3 className="text-xl sm:text-2xl font-bold mt-1 text-[#10B981]">
+                    ₦
+                    {contests
+                      .reduce(
+                        (sum, c) =>
+                          sum + c.contestants.reduce((s, ct) => s + ct.amountGained, 0),
                         0
                       )
-                    }
+                      .toLocaleString()}
                   </h3>
                 </div>
-                <div className="p-3 bg-[#7C3AED]/10 rounded-lg">
-                  <FiBarChart2 className="text-[#7C3AED] text-xl" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-[#2A2A2A] p-6 rounded-xl shadow-sm border border-[#333333] hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400">Total Revenue</p>
-                  <h3 className="text-2xl font-bold mt-1 text-[#10B981]">
-                    ₦{contests.reduce((sum, c) => sum + c.contestants.reduce((s, ct) => s + ct.amountGained, 0), 0).toLocaleString()}
-                  </h3>
-                </div>
-                <div className="p-3 bg-[#10B981]/10 rounded-lg">
-                  <FiCreditCard className="text-[#10B981] text-xl" />
+                <div className="p-2 sm:p-3 bg-[#10B981]/10 rounded-lg">
+                  <FiCreditCard className="text-[#10B981] text-lg sm:text-xl" />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Contests Section */}
-          <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] mb-8 overflow-hidden">
-            <div className="p-6 border-b border-[#333333] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-[#FFD700]">Contests Management</h2>
+          {/* Contests Management Section */}
+          <div className="bg-[#2A2A2A] rounded-lg shadow-sm border border-[#333333] mb-6 overflow-hidden">
+            {/* Header with Add Button */}
+            <div className="p-4 sm:p-6 border-b border-[#333333] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <h2 className="text-lg sm:text-xl font-bold text-[#FFD700]">
+                Contests Management
+              </h2>
               <button
                 onClick={() => {
-                  setEditingContest(null);
+                  setEditingContest(null); // Clear any editing state
+                  setShowContestForm(true); // Show the form
                   setNewContest({
                     title: '',
                     description: '',
@@ -1090,263 +1181,210 @@ function EntertainmentWebsite() {
             </div>
 
             {/* Add/Edit Contest Form */}
-            <div className="p-6 border-b border-[#333333]">
-              <h3 className="text-lg font-medium mb-4 text-[#FFD700]">
-                {editingContest ? 'Edit Contest' : 'Add New Contest'}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-400">Title</label>
-                  <input
-                    type="text"
-                    value={editingContest ? editingContest.title : newContest.title}
-                    onChange={(e) => editingContest
-                      ? setEditingContest({ ...editingContest, title: e.target.value })
-                      : setNewContest({ ...newContest, title: e.target.value })
-                    }
-                    className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-400">Category</label>
-                  <input
-                    type="text"
-                    value={editingContest ? editingContest.category : newContest.category}
-                    onChange={(e) => editingContest
-                      ? setEditingContest({ ...editingContest, category: e.target.value })
-                      : setNewContest({ ...newContest, category: e.target.value })
-                    }
-                    className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
-                    placeholder="E.g. BOUESTI MASS COM"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2 text-gray-400">Description</label>
-                  <textarea
-                    value={editingContest ? editingContest.description : newContest.description}
-                    onChange={(e) => editingContest
-                      ? setEditingContest({ ...editingContest, description: e.target.value })
-                      : setNewContest({ ...newContest, description: e.target.value })
-                    }
-                    className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
-                    rows={3}
-                  ></textarea>
-                </div>
-                <div>
-                  <label className="flex items-center space-x-3 cursor-pointer">
+            {(showContestForm || editingContest) && (
+              <div className="p-6 border-b border-[#333333]">
+                <h3 className="text-lg font-medium mb-4 text-[#FFD700]">
+                  {editingContest ? 'Edit Contest' : 'Add New Contest'}
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-400">Title</label>
                     <input
-                      type="checkbox"
-                      checked={editingContest ? editingContest.isActive : newContest.isActive}
-                      onChange={(e) => editingContest
-                        ? setEditingContest({ ...editingContest, isActive: e.target.checked })
-                        : setNewContest({ ...newContest, isActive: e.target.checked })
+                      type="text"
+                      value={editingContest ? editingContest.title : newContest.title}
+                      onChange={(e) =>
+                        editingContest
+                          ? setEditingContest({ ...editingContest, title: e.target.value })
+                          : setNewContest({ ...newContest, title: e.target.value })
                       }
-                      className="form-checkbox h-5 w-5 text-[#4F46E5] rounded focus:ring-[#4F46E5]"
+                      className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
                     />
-                    <span className="text-gray-400">Active Contest</span>
-                  </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-400">Category</label>
+                    <input
+                      type="text"
+                      value={editingContest ? editingContest.category : newContest.category}
+                      onChange={(e) =>
+                        editingContest
+                          ? setEditingContest({ ...editingContest, category: e.target.value })
+                          : setNewContest({ ...newContest, category: e.target.value })
+                      }
+                      className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
+                      placeholder="E.g. BOUESTI MASS COM"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-2 text-gray-400">Description</label>
+                    <textarea
+                      value={editingContest ? editingContest.description : newContest.description}
+                      onChange={(e) =>
+                        editingContest
+                          ? setEditingContest({ ...editingContest, description: e.target.value })
+                          : setNewContest({ ...newContest, description: e.target.value })
+                      }
+                      className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingContest ? editingContest.isActive : newContest.isActive}
+                        onChange={(e) =>
+                          editingContest
+                            ? setEditingContest({ ...editingContest, isActive: e.target.checked })
+                            : setNewContest({ ...newContest, isActive: e.target.checked })
+                        }
+                        className="form-checkbox h-5 w-5 text-[#4F46E5] rounded focus:ring-[#4F46E5]"
+                      />
+                      <span className="text-gray-400">Active Contest</span>
+                    </label>
+                  </div>
                 </div>
-              </div>
-              <div className="flex justify-end mt-4 space-x-3">
-                {editingContest && (
+
+                <div className="flex justify-end mt-4 space-x-3">
                   <button
-                    onClick={() => setEditingContest(null)}
+                    onClick={() => {
+                      setEditingContest(null);
+                      setShowContestForm(false);
+                    }}
                     className="px-4 py-2 border border-[#444444] text-gray-300 rounded-lg hover:bg-[#333333] transition-colors"
                   >
                     Cancel
                   </button>
-                )}
-                <button
-                  onClick={editingContest ? updateContest : addContest}
-                  className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-6 py-2 rounded-lg transition-colors"
-                >
-                  {editingContest ? (
-                    <>
-                      <FiEdit2 />
-                      <span>Update Contest</span>
-                    </>
-                  ) : (
-                    <>
-                      <FiPlus />
-                      <span>Add Contest</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
 
-            {/* Contests Table */}
-            {/* Contests Section */}
-            <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] mb-8 overflow-hidden">
-              <div className="p-6 border-b border-[#333333] flex justify-between items-center">
-                <h2 className="text-xl font-bold text-[#FFD700]">Contests Management</h2>
-                <button
-                  onClick={() => {
-                    setEditingContest(null);
-                    setNewContest({
-                      title: '',
-                      description: '',
-                      category: '',
-                      isActive: true
-                    });
-                  }}
-                  className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-4 py-2 rounded-lg transition-colors"
-                >
-                  <FiPlus />
-                  <span>Add Contest</span>
-                </button>
-              </div>
-
-              {/* Add/Edit Contest Form */}
-              {(editingContest || newContest.title) && (
-                <div className="p-6 border-b border-[#333333]">
-                  <h3 className="text-lg font-medium mb-4 text-[#FFD700]">
-                    {editingContest ? 'Edit Contest' : 'Add New Contest'}
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-gray-400">Title</label>
-                      <input
-                        type="text"
-                        value={editingContest ? editingContest.title : newContest.title}
-                        onChange={(e) => editingContest
-                          ? setEditingContest({ ...editingContest, title: e.target.value })
-                          : setNewContest({ ...newContest, title: e.target.value })
-                        }
-                        className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-gray-400">Category</label>
-                      <input
-                        type="text"
-                        value={editingContest ? editingContest.category : newContest.category}
-                        onChange={(e) => editingContest
-                          ? setEditingContest({ ...editingContest, category: e.target.value })
-                          : setNewContest({ ...newContest, category: e.target.value })
-                        }
-                        className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
-                        placeholder="E.g. BOUESTI MASS COM"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium mb-2 text-gray-400">Description</label>
-                      <textarea
-                        value={editingContest ? editingContest.description : newContest.description}
-                        onChange={(e) => editingContest
-                          ? setEditingContest({ ...editingContest, description: e.target.value })
-                          : setNewContest({ ...newContest, description: e.target.value })
-                        }
-                        className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
-                        rows={3}
-                      ></textarea>
-                    </div>
-                    <div>
-                      <label className="flex items-center space-x-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={editingContest ? editingContest.isActive : newContest.isActive}
-                          onChange={(e) => editingContest
-                            ? setEditingContest({ ...editingContest, isActive: e.target.checked })
-                            : setNewContest({ ...newContest, isActive: e.target.checked })
-                          }
-                          className="form-checkbox h-5 w-5 text-[#4F46E5] rounded focus:ring-[#4F46E5]"
-                        />
-                        <span className="text-gray-400">Active Contest</span>
-                      </label>
-                    </div>
-                  </div>
-                  <div className="flex justify-end mt-4 space-x-3">
-                    {editingContest && (
-                      <button
-                        onClick={() => setEditingContest(null)}
-                        className="px-4 py-2 border border-[#444444] text-gray-300 rounded-lg hover:bg-[#333333] transition-colors"
-                      >
-                        Cancel
-                      </button>
+                  <button
+                    onClick={() => {
+                      if (editingContest) {
+                        updateContest();
+                      } else {
+                        addContest(); // This should add to your contests array
+                      }
+                      setShowContestForm(false);
+                    }}
+                    className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-6 py-2 rounded-lg transition-colors"
+                  >
+                    {editingContest ? (
+                      <>
+                        <FiEdit2 />
+                        <span>Update Contest</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiPlus />
+                        <span>Add Contest</span>
+                      </>
                     )}
-                    <button
-                      onClick={editingContest ? updateContest : addContest}
-                      className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-6 py-2 rounded-lg transition-colors"
-                    >
-                      {editingContest ? (
-                        <>
-                          <FiEdit2 />
-                          <span>Update Contest</span>
-                        </>
-                      ) : (
-                        <>
-                          <FiPlus />
-                          <span>Add Contest</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                  </button>
                 </div>
-              )}
-
-              {/* Contests Table */}
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-[#333333]">
-                  <thead className="bg-[#333333]">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Title</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Category</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Contestants</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-[#2A2A2A] divide-y divide-[#333333]">
-                    {contests.map((contest) => (
-                      <tr key={contest.id} className="hover:bg-[#333333] transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="font-medium text-white cursor-pointer" onClick={() => setSelectedContest(contest)}>
-                            {contest.title}
-                            <div className="text-sm text-gray-400 line-clamp-1">{contest.description}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 capitalize">{contest.category}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{contest.contestants.length}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs rounded-full ${contest.isActive ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'}`}>
-                            {contest.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => {
-                              setEditingContest(contest);
-                              setSelectedContest(contest);
-                            }}
-                            className="text-[#FFD700] hover:text-[#E6C200] mr-4"
-                          >
-                            <FiEdit2 />
-                          </button>
-                          <button
-                            onClick={() => toggleContestStatus(contest.id)}
-                            className={`mr-4 ${contest.isActive ? 'text-yellow-500 hover:text-yellow-400' : 'text-green-500 hover:text-green-400'}`}
-                          >
-                            {contest.isActive ? 'Deactivate' : 'Activate'}
-                          </button>
-                          <button
-                            onClick={() => deleteContest(contest.id)}
-                            className="text-red-600 hover:text-red-500"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
-            </div>
+            )}
 
-            {/* Contest Details Drawer */}
+            {/* Contests Table - Responsive */}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-[#333333]">
+                <thead className="bg-[#333333]">
+                  <tr>
+                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      Title
+                    </th>
+                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Contestants
+                    </th>
+                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-[#2A2A2A] divide-y divide-[#333333]">
+                  {contests.map((contest) => (
+                    <tr
+                      key={contest.id}
+                      className="hover:bg-[#333333] transition-colors cursor-pointer"
+                      onClick={() => setSelectedContest(contest)} // Maintain drawer functionality
+                    >
+                      <td className="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap">
+                        <div className="font-medium text-white text-sm sm:text-base">
+                          {contest.title}
+                          <div className="text-xs text-gray-400 line-clamp-1 sm:hidden">
+                            {contest.category}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-400 capitalize">
+                        {contest.category}
+                      </td>
+                      <td className="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-400">
+                        {contest.contestants.length}
+                      </td>
+                      <td className="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs rounded-full ${contest.isActive ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'
+                          }`}>
+                          {contest.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-right text-xs sm:text-sm font-medium">
+                        <div className="flex justify-end space-x-2 sm:space-x-4">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingContest(contest);
+                            }}
+                            className="text-[#FFD700] hover:text-[#E6C200]"
+                            title="Edit"
+                          >
+                            <FiEdit2 size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleContestStatus(contest.id);
+                            }}
+                            className={`${contest.isActive
+                              ? 'text-yellow-500 hover:text-yellow-400'
+                              : 'text-green-500 hover:text-green-400'
+                              }`}
+                            title={contest.isActive ? 'Deactivate' : 'Activate'}
+                          >
+                            {contest.isActive ? (
+                              <FiPauseCircle size={16} />
+                            ) : (
+                              <FiPlayCircle size={16} />
+                            )}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteContest(contest.id);
+                            }}
+                            className="text-red-600 hover:text-red-500"
+                            title="Delete"
+                          >
+                            <FiTrash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {selectedContest && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-end">
+              <div className="fixed inset-0 bg-black/70 z-90 flex justify-end">
                 <div className="bg-[#2A2A2A] w-full max-w-2xl h-full overflow-y-auto">
+                  {/* Drawer Header */}
                   <div className="sticky top-0 bg-[#2A2A2A] z-10 p-4 border-b border-[#333333] flex justify-between items-center">
                     <h2 className="text-xl font-bold text-[#FFD700]">
                       {selectedContest.title} - Contestants
@@ -1367,12 +1405,13 @@ function EntertainmentWebsite() {
                     </button>
                   </div>
 
-                  <div className="p-6">
+                  {/* Drawer Content - Responsive */}
+                  <div className="p-4 sm:p-6">
                     {/* Contest Info */}
                     <div className="bg-[#333333] p-4 rounded-lg mb-6">
                       <h3 className="text-lg font-bold text-[#FFD700] mb-2">Contest Information</h3>
                       <p className="text-gray-300 mb-2">{selectedContest.description}</p>
-                      <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                         <div>
                           <p className="text-sm text-gray-400">Category</p>
                           <p className="text-white">{selectedContest.category}</p>
@@ -1396,7 +1435,7 @@ function EntertainmentWebsite() {
                       </div>
                     </div>
 
-                    {/* Add Contestant Form */}
+                    {/* Add Contestant Form - Responsive */}
                     <div className="bg-[#333333] p-4 rounded-lg mb-6">
                       <h3 className="text-lg font-bold text-[#FFD700] mb-4">
                         {editingContestant ? 'Edit Contestant' : 'Add New Contestant'}
@@ -1437,12 +1476,10 @@ function EntertainmentWebsite() {
                           <div className="flex items-center space-x-4">
                             {(editingContestant?.image || newContestant.image) ? (
                               <div className="relative h-20 w-20 rounded-lg overflow-hidden">
-                                <Image
+                                <img
                                   src={editingContestant?.image || newContestant.image}
                                   alt="Preview"
-                                  layout="fill"
-                                  objectFit="cover"
-                                  unoptimized
+                                  className="w-full h-full object-cover"
                                 />
                               </div>
                             ) : (
@@ -1510,7 +1547,7 @@ function EntertainmentWebsite() {
                       </div>
                     </div>
 
-                    {/* Contestants List */}
+                    {/* Contestants List - Responsive */}
                     <h3 className="text-xl font-bold text-[#FFD700] mb-4">Contestants ({selectedContest.contestants.length})</h3>
 
                     {selectedContest.contestants.length === 0 ? (
@@ -1522,19 +1559,17 @@ function EntertainmentWebsite() {
                       <div className="space-y-4">
                         {selectedContest.contestants.map((contestant) => (
                           <div key={contestant.id} className="bg-[#333333] rounded-lg overflow-hidden">
-                            <div className="flex flex-col md:flex-row">
-                              <div className="md:w-1/4">
-                                <div className="relative h-48 md:h-full">
-                                  <Image
+                            <div className="flex flex-col sm:flex-row">
+                              <div className="sm:w-1/4">
+                                <div className="relative h-48 sm:h-full">
+                                  <img
                                     src={contestant.image}
                                     alt={contestant.name}
-                                    layout="fill"
-                                    objectFit="cover"
-                                    unoptimized
+                                    className="w-full h-full object-cover"
                                   />
                                 </div>
                               </div>
-                              <div className="md:w-3/4 p-4">
+                              <div className="sm:w-3/4 p-4">
                                 <div className="flex justify-between items-start">
                                   <div>
                                     <h4 className="text-lg font-bold text-[#FFD700]">{contestant.name}</h4>
@@ -1595,94 +1630,112 @@ function EntertainmentWebsite() {
           </div>
 
           {/* Contestant Management Section */}
-          <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] mb-8 overflow-hidden">
-            <div className="p-6 border-b border-[#333333] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-[#FFD700]">Contestant Management</h2>
-              <div className="flex items-center space-x-4">
+          <div className="bg-[#2A2A2A] rounded-lg shadow-sm border border-[#333333] mb-6 overflow-hidden">
+            <div className="p-4 sm:p-6 border-b border-[#333333] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <h2 className="text-lg sm:text-xl font-bold text-[#FFD700]">
+                Contestant Management
+              </h2>
+              <div className="w-full sm:w-auto">
                 <select
                   value={selectedContest?.id || ''}
                   onChange={(e) => {
-                    const contest = contests.find(c => c.id === e.target.value);
+                    const contest = contests.find((c) => c.id === e.target.value);
                     setSelectedContest(contest || null);
                   }}
-                  className="bg-[#333333] border border-[#444444] text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"
+                  className="w-full sm:w-64 bg-[#333333] border border-[#444444] text-white rounded-lg px-3 sm:px-4 py-2 focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] text-sm sm:text-base"
                 >
                   <option value="">Select a contest</option>
-                  {contests.map(contest => (
-                    <option key={contest.id} value={contest.id}>{contest.title}</option>
+                  {contests.map((contest) => (
+                    <option key={contest.id} value={contest.id}>
+                      {contest.title}
+                    </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            {/* Add/Edit Contestant Form */}
+            {/* Contestant Form */}
             {selectedContest && (
-              <div className="p-6 border-b border-[#333333]">
-                <h3 className="text-lg font-medium mb-4 text-[#FFD700]">
+              <div className="p-4 sm:p-6 border-b border-[#333333]">
+                <h3 className="text-md sm:text-lg font-medium mb-3 sm:mb-4 text-[#FFD700]">
                   {editingContestant ? 'Edit Contestant' : 'Add New Contestant'}
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-400">Name</label>
+                    <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-400">
+                      Name
+                    </label>
                     <input
                       type="text"
                       value={editingContestant ? editingContestant.name : newContestant.name}
-                      onChange={(e) => editingContestant
-                        ? setEditingContestant({ ...editingContestant, name: e.target.value })
-                        : setNewContestant({ ...newContestant, name: e.target.value })
+                      onChange={(e) =>
+                        editingContestant
+                          ? setEditingContestant({ ...editingContestant, name: e.target.value })
+                          : setNewContestant({ ...newContestant, name: e.target.value })
                       }
-                      className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
+                      className="w-full p-2 sm:p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] text-sm sm:text-base"
                       placeholder="Contestant name"
                     />
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium mb-2 text-gray-400">Bio/Description</label>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-400">
+                      Bio/Description
+                    </label>
                     <textarea
                       value={editingContestant ? editingContestant.bio : newContestant.bio}
-                      onChange={(e) => editingContestant
-                        ? setEditingContestant({ ...editingContestant, bio: e.target.value })
-                        : setNewContestant({ ...newContestant, bio: e.target.value })
+                      onChange={(e) =>
+                        editingContestant
+                          ? setEditingContestant({ ...editingContestant, bio: e.target.value })
+                          : setNewContestant({ ...newContestant, bio: e.target.value })
                       }
-                      className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
+                      className="w-full p-2 sm:p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] text-sm sm:text-base"
                       rows={3}
                       placeholder="Detailed description about the contestant"
-                    ></textarea>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-400">Image URL</label>
-                    <input
-                      type="text"
-                      value={editingContestant ? editingContestant.image : newContestant.image}
-                      onChange={(e) => editingContestant
-                        ? setEditingContestant({ ...editingContestant, image: e.target.value })
-                        : setNewContestant({ ...newContestant, image: e.target.value })
-                      }
-                      className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] cursor-text"
-                      placeholder="Paste image URL here"
                     />
                   </div>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-400">
+                      Image URL
+                    </label>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="text"
+                        value={editingContestant ? editingContestant.image : newContestant.image}
+                        onChange={(e) =>
+                          editingContestant
+                            ? setEditingContestant({ ...editingContestant, image: e.target.value })
+                            : setNewContestant({ ...newContestant, image: e.target.value })
+                        }
+                        className="flex-1 p-2 sm:p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5] text-sm sm:text-base"
+                        placeholder="Paste image URL here"
+                      />
+                      <button className="bg-[#4F46E5] hover:bg-[#4338CA] text-white p-2 sm:p-3 rounded-lg">
+                        <FiUpload size={16} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-end mt-4 space-x-3">
+                <div className="flex justify-end mt-3 sm:mt-4 space-x-2 sm:space-x-3">
                   {editingContestant && (
                     <button
                       onClick={() => setEditingContestant(null)}
-                      className="px-4 py-2 border border-[#444444] text-gray-300 rounded-lg hover:bg-[#333333] transition-colors"
+                      className="px-3 sm:px-4 py-1 sm:py-2 border border-[#444444] text-gray-300 rounded-lg hover:bg-[#333333] transition-colors text-xs sm:text-sm"
                     >
                       Cancel
                     </button>
                   )}
                   <button
                     onClick={editingContestant ? updateContestant : addContestant}
-                    className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-6 py-2 rounded-lg transition-colors"
+                    className="flex items-center space-x-1 sm:space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-4 sm:px-6 py-1 sm:py-2 rounded-lg transition-colors text-xs sm:text-sm"
                   >
                     {editingContestant ? (
                       <>
-                        <FiEdit2 />
-                        <span>Update Contestant</span>
+                        <FiEdit2 size={14} />
+                        <span>Update</span>
                       </>
                     ) : (
                       <>
-                        <FiPlus />
+                        <FiPlus size={14} />
                         <span>Add Contestant</span>
                       </>
                     )}
@@ -1691,41 +1744,48 @@ function EntertainmentWebsite() {
               </div>
             )}
 
-            {/* Contestants Grid */}
+            {/* Contestants Grid - Responsive */}
             {selectedContest && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 p-3 sm:p-4">
                 {selectedContest.contestants.map((contestant) => (
-                  <div key={contestant.id} className="border border-[#333333] rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                    <div className="relative h-48">
-                      <Image
+                  <div
+                    key={contestant.id}
+                    className="border border-[#333333] rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+                  >
+                    <div className="relative h-40 sm:h-48">
+                      <img
                         src={contestant.image}
                         alt={contestant.name}
-                        layout="fill"
-                        objectFit="cover"
-                        unoptimized
+                        className="w-full h-full object-cover"
                       />
                     </div>
-                    <div className="p-4">
-                      <h3 className="font-bold text-lg text-white mb-2">{contestant.name}</h3>
-                      <p className="text-gray-300 text-sm mb-4 line-clamp-3">{contestant.bio}</p>
+                    <div className="p-3 sm:p-4">
+                      <h3 className="font-bold text-sm sm:text-base text-white mb-1 sm:mb-2 truncate">
+                        {contestant.name}
+                      </h3>
+                      <p className="text-gray-300 text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
+                        {contestant.bio}
+                      </p>
                       <div className="flex justify-between items-center">
-                        <div className="text-sm text-gray-400">
+                        <div className="text-xs sm:text-sm text-gray-400">
                           Votes: <span className="text-[#FFD700]">{contestant.votes}</span>
                         </div>
-                        <div className="flex space-x-2">
+                        <div className="flex space-x-2 sm:space-x-3">
                           <button
                             onClick={() => {
                               setEditingContestant(contestant);
                             }}
                             className="text-[#4F46E5] hover:text-[#4338CA]"
+                            title="Edit"
                           >
-                            <FiEdit2 />
+                            <FiEdit2 size={16} />
                           </button>
                           <button
                             onClick={() => deleteContestant(contestant.id)}
                             className="text-red-600 hover:text-red-500"
+                            title="Delete"
                           >
-                            <FiTrash2 />
+                            <FiTrash2 size={16} />
                           </button>
                         </div>
                       </div>
@@ -1736,130 +1796,12 @@ function EntertainmentWebsite() {
             )}
           </div>
 
-          {/* Contestant Details Modal */}
-          {selectedContestant && selectedContest && (
-            <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-              <div className="bg-[#2A2A2A] rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-                <div className="sticky top-0 bg-[#2A2A2A] z-10 p-4 border-b border-[#333333] flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-[#FFD700]">
-                    Contestant Details: {selectedContestant.name}
-                  </h2>
-                  <button
-                    onClick={() => {
-                      setSelectedContestant(null);
-                      setSelectedContest(null);
-                    }}
-                    className="text-gray-400 hover:text-[#FFD700] p-1 rounded-full"
-                  >
-                    <FiX size={24} />
-                  </button>
-                </div>
-
-                <div className="p-6">
-                  <div className="flex flex-col md:flex-row gap-6">
-                    {/* Left Column - Contestant Info */}
-                    <div className="md:w-1/3">
-                      <div className="relative h-64 w-full rounded-lg overflow-hidden mb-4">
-                        <Image
-                          src={selectedContestant.image}
-                          alt={selectedContestant.name}
-                          layout="fill"
-                          objectFit="cover"
-                          unoptimized
-                        />
-                      </div>
-
-                      <div className="bg-[#333333] p-4 rounded-lg mb-4">
-                        <h3 className="text-lg font-bold text-[#FFD700] mb-2">Voting Stats</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-gray-400">Total Votes</p>
-                            <p className="text-xl font-bold text-white">{selectedContestant.votes}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-400">Amount Raised</p>
-                            <p className="text-xl font-bold text-green-400">₦{selectedContestant.amountGained.toLocaleString()}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-[#333333] p-4 rounded-lg">
-                        <h3 className="text-lg font-bold text-[#FFD700] mb-2">Contest Info</h3>
-                        <p className="text-white font-medium">{selectedContest.title}</p>
-                        <p className="text-gray-300 text-sm mb-2">{selectedContest.description}</p>
-                        <p className="text-gray-400 text-xs">Category: {selectedContest.category}</p>
-                        <p className="text-gray-400 text-xs">Status:
-                          <span className={`ml-1 px-2 py-1 rounded-full ${selectedContest.isActive ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'}`}>
-                            {selectedContest.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Right Column - Bio and Comments */}
-                    <div className="md:w-2/3">
-                      <div className="bg-[#333333] p-4 rounded-lg mb-6">
-                        <h3 className="text-lg font-bold text-[#FFD700] mb-2">Biography</h3>
-                        <p className="text-gray-300">{selectedContestant.bio}</p>
-                      </div>
-
-                      <div className="bg-[#333333] p-4 rounded-lg">
-                        <div className="flex justify-between items-center mb-4">
-                          <h3 className="text-lg font-bold text-[#FFD700]">Voter Comments ({selectedContestant.comments.length})</h3>
-                        </div>
-
-                        {selectedContestant.comments.length > 0 ? (
-                          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                            {selectedContestant.comments.map(comment => (
-                              <div key={comment.id} className="bg-[#2A2A2A] p-3 rounded-lg border-l-4 border-[#FFD700]">
-                                <p className="text-gray-300">{comment.text}</p>
-                                <p className="text-gray-500 text-xs mt-2">
-                                  {new Date(comment.createdAt).toLocaleString()}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-gray-400">
-                            <FiInfo className="mx-auto mb-2 text-xl" />
-                            <p>No comments yet</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex justify-end space-x-3">
-                    <button
-                      onClick={() => {
-                        setEditingContestant(selectedContestant);
-                        setSelectedContestant(null);
-                      }}
-                      className="px-4 py-2 bg-[#4F46E5] text-white rounded-lg hover:bg-[#4338CA]"
-                    >
-                      <FiEdit2 className="inline mr-2" />
-                      Edit Contestant
-                    </button>
-                    <button
-                      onClick={() => {
-                        deleteContestant(selectedContestant.id);
-                        setSelectedContestant(null);
-                      }}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                    >
-                      <FiTrash2 className="inline mr-2" />
-                      Delete Contestant
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Events Section */}
-          <div className="bg-[#2A2A2A] rounded-xl shadow-sm border border-[#333333] overflow-hidden">
-            <div className="p-6 border-b border-[#333333] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-400">Events Management</h2>
+          {/* Events Management Section */}
+          <div className="bg-[#2A2A2A] rounded-lg shadow-sm border border-[#333333] overflow-hidden">
+            <div className="p-4 sm:p-6 border-b border-[#333333] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-400">
+                Events Management
+              </h2>
               <button
                 onClick={() => {
                   setEditingEvent(null);
@@ -1870,90 +1812,102 @@ function EntertainmentWebsite() {
                     image: '',
                   });
                 }}
-                className="flex items-center space-x-2 bg-gradient-to-r from-[#FFD700] to-[#E6C200] hover:opacity-90 text-[#1A1A1A] px-4 py-2 rounded-lg transition-colors font-semibold"
+                className="flex items-center space-x-1 sm:space-x-2 bg-gradient-to-r from-[#FFD700] to-[#E6C200] hover:opacity-90 text-[#1A1A1A] px-3 sm:px-4 py-2 rounded-lg transition-colors font-semibold text-sm sm:text-base w-full sm:w-auto justify-center"
               >
-                <FiPlus />
+                <FiPlus size={16} />
                 <span>Add Event</span>
               </button>
             </div>
 
             {/* Add/Edit Event Form */}
-            <div className="p-6 border-b border-[#333333]">
-              <h3 className="text-lg font-medium mb-4 text-gray-400">
+            <div className="p-4 sm:p-6 border-b border-[#333333]">
+              <h3 className="text-md sm:text-lg font-medium mb-3 sm:mb-4 text-gray-400">
                 {editingEvent ? 'Edit Event' : 'Add New Event'}
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-600">Title</label>
+                  <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-600">
+                    Title
+                  </label>
                   <input
                     type="text"
                     value={editingEvent ? editingEvent.title : newEvent.title}
-                    onChange={(e) => editingEvent
-                      ? setEditingEvent({ ...editingEvent, title: e.target.value })
-                      : setNewEvent({ ...newEvent, title: e.target.value })
+                    onChange={(e) =>
+                      editingEvent
+                        ? setEditingEvent({ ...editingEvent, title: e.target.value })
+                        : setNewEvent({ ...newEvent, title: e.target.value })
                     }
-                    className="w-full p-3 border border-[#333333] rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
+                    className="w-full p-2 sm:p-3 border border-[#333333] rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 text-sm sm:text-base"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-600">Date</label>
+                  <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-600">
+                    Date
+                  </label>
                   <input
                     type="date"
                     value={editingEvent ? editingEvent.date : newEvent.date}
-                    onChange={(e) => editingEvent
-                      ? setEditingEvent({ ...editingEvent, date: e.target.value })
-                      : setNewEvent({ ...newEvent, date: e.target.value })
+                    onChange={(e) =>
+                      editingEvent
+                        ? setEditingEvent({ ...editingEvent, date: e.target.value })
+                        : setNewEvent({ ...newEvent, date: e.target.value })
                     }
-                    className="w-full p-3 border border-[#333333] rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-pointer"
+                    className="w-full p-2 sm:p-3 border border-[#333333] rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 text-sm sm:text-base"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-600">Location</label>
+                  <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-600">
+                    Location
+                  </label>
                   <input
                     type="text"
                     value={editingEvent ? editingEvent.location : newEvent.location}
-                    onChange={(e) => editingEvent
-                      ? setEditingEvent({ ...editingEvent, location: e.target.value })
-                      : setNewEvent({ ...newEvent, location: e.target.value })
+                    onChange={(e) =>
+                      editingEvent
+                        ? setEditingEvent({ ...editingEvent, location: e.target.value })
+                        : setNewEvent({ ...newEvent, location: e.target.value })
                     }
-                    className="w-full p-3 border border-[#333333] rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
+                    className="w-full p-2 sm:p-3 border border-[#333333] rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 text-sm sm:text-base"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-600">Image URL</label>
+                  <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-600">
+                    Image URL
+                  </label>
                   <input
                     type="text"
                     value={editingEvent ? editingEvent.image : newEvent.image}
-                    onChange={(e) => editingEvent
-                      ? setEditingEvent({ ...editingEvent, image: e.target.value })
-                      : setNewEvent({ ...newEvent, image: e.target.value })
+                    onChange={(e) =>
+                      editingEvent
+                        ? setEditingEvent({ ...editingEvent, image: e.target.value })
+                        : setNewEvent({ ...newEvent, image: e.target.value })
                     }
-                    className="w-full p-3 border border-[#333333] rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 cursor-text"
+                    className="w-full p-2 sm:p-3 border border-[#333333] rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 text-sm sm:text-base"
                     placeholder="Paste image URL here"
                   />
                 </div>
               </div>
-              <div className="flex justify-end mt-4 space-x-3">
+              <div className="flex justify-end mt-3 sm:mt-4 space-x-2 sm:space-x-3">
                 {editingEvent && (
                   <button
                     onClick={() => setEditingEvent(null)}
-                    className="px-4 py-2 border border-[#333333] text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="px-3 sm:px-4 py-1 sm:py-2 border border-[#333333] text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs sm:text-sm"
                   >
                     Cancel
                   </button>
                 )}
                 <button
                   onClick={editingEvent ? updateEvent : addEvent}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-[#FFD700] to-[#E6C200] hover:opacity-90 text-[#1A1A1A] px-6 py-2 rounded-lg transition-colors font-semibold"
+                  className="flex items-center space-x-1 sm:space-x-2 bg-gradient-to-r from-[#FFD700] to-[#E6C200] hover:opacity-90 text-[#1A1A1A] px-4 sm:px-6 py-1 sm:py-2 rounded-lg transition-colors font-semibold text-xs sm:text-sm"
                 >
                   {editingEvent ? (
                     <>
-                      <FiEdit2 />
-                      <span>Update Event</span>
+                      <FiEdit2 size={14} />
+                      <span>Update</span>
                     </>
                   ) : (
                     <>
-                      <FiPlus />
+                      <FiPlus size={14} />
                       <span>Add Event</span>
                     </>
                   )}
@@ -1961,26 +1915,29 @@ function EntertainmentWebsite() {
               </div>
             </div>
 
-            {/* Events Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+            {/* Events Grid - Responsive */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 p-3 sm:p-4">
               {events.map((event) => (
-                <div key={event.id} className="border border-[#333333] rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="relative h-48">
-                    <Image
+                <div
+                  key={event.id}
+                  className="border border-[#333333] rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+                >
+                  <div className="relative h-40 sm:h-48">
+                    <img
                       src={event.image}
                       alt={event.title}
-                      layout="fill"
-                      objectFit="cover"
-                      unoptimized
+                      className="w-full h-full object-cover"
                     />
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg text-gray-300 mb-2">{event.title}</h3>
-                    <div className="flex items-center text-gray-200 mb-1">
+                  <div className="p-3 sm:p-4">
+                    <h3 className="font-bold text-sm sm:text-base text-gray-300 mb-1 sm:mb-2">
+                      {event.title}
+                    </h3>
+                    <div className="flex items-center text-gray-200 text-xs sm:text-sm mb-1">
                       <FiCalendar className="mr-2 text-indigo-500" />
                       <span>{event.date}</span>
                     </div>
-                    <div className="flex items-center text-gray-200 mb-4">
+                    <div className="flex items-center text-gray-200 text-xs sm:text-sm mb-3">
                       <FiMapPin className="mr-2 text-indigo-500" />
                       <span>{event.location}</span>
                     </div>
@@ -1988,14 +1945,16 @@ function EntertainmentWebsite() {
                       <button
                         onClick={() => setEditingEvent(event)}
                         className="text-indigo-600 hover:text-indigo-800"
+                        title="Edit"
                       >
-                        <FiEdit2 />
+                        <FiEdit2 size={16} />
                       </button>
                       <button
                         onClick={() => deleteEvent(event.id)}
                         className="text-red-600 hover:text-red-800"
+                        title="Delete"
                       >
-                        <FiTrash2 />
+                        <FiTrash2 size={16} />
                       </button>
                     </div>
                   </div>
@@ -2157,11 +2116,11 @@ function EntertainmentWebsite() {
                   <p className="text-gray-300 mb-4 line-clamp-3">{contestant.bio}</p>
                   <div className="flex justify-between items-center">
                     <div className="text-sm text-gray-400">
-                      Votes: <span className="text-[#FFD700]">{contestant.votes}</span>
                     </div>
                     <button
                       onClick={() => {
                         setSelectedContestant(contestant);
+                        setSelectedContest(viewingContest);
                         setShowVoteDialog(true);
                       }}
                       className="bg-[#FFD700] text-[#1A1A1A] px-4 py-1 rounded-full font-bold hover:bg-[#E6C200] transition-colors cursor-pointer"
@@ -2170,47 +2129,134 @@ function EntertainmentWebsite() {
                     </button>
                   </div>
 
-                  {/* Vote Dialog - shown inline when active */}
-                  {showVoteDialog && selectedContestant?.id === contestant.id && (
-                    <div className="mt-4 bg-[#333333] p-4 rounded-lg">
-                      <div className="flex justify-between items-center mb-4">
-                        <h4 className="text-lg font-bold text-[#FFD700]">Vote for {contestant.name}</h4>
-                        <button
-                          onClick={() => setShowVoteDialog(false)}
-                          className="text-gray-400 hover:text-white"
-                        >
-                          <FiX />
-                        </button>
-                      </div>
+                  Vote Dialog - shown inline when active
+                  {showVoteDialog && selectedContestant && selectedContest && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+                      <div className="bg-[#2A2A2A] rounded-xl w-full max-w-md mx-auto shadow-2xl border border-[#3A3A3A] overflow-hidden">
+                        {/* Header - Sticky on mobile */}
+                        <div className="sticky top-0 bg-[#2A2A2A] z-10 p-4 flex justify-between items-center border-b border-[#3A3A3A]">
+                          <h2 className="text-xl font-bold text-[#FFD700] truncate">
+                            Vote for {selectedContestant.name}
+                          </h2>
+                          <button
+                            onClick={() => {
+                              setShowVoteDialog(false);
+                              setVoteAmount(1);
+                              setVoteAmountError('');
+                            }}
+                            className="text-gray-400 hover:text-[#FFD700] p-1"
+                          >
+                            <FiX size={24} />
+                          </button>
+                        </div>
 
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium mb-2 text-gray-300">
-                          Add a comment (optional)
-                        </label>
-                        <textarea
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value)}
-                          className="w-full p-3 bg-[#2A2A2A] border border-[#444444] text-white rounded-lg"
-                          rows={3}
-                          placeholder="Your comment..."
-                        />
-                      </div>
+                        {/* Scrollable Content */}
+                        <div className="p-4 overflow-y-auto max-h-[80vh]">
+                          {/* Contestant Card - Mobile Optimized */}
+                          <div className="flex items-center mb-4 bg-[#333333] rounded-lg p-3">
+                            <div className="w-20 h-20 flex-shrink-0 mr-3">
+                              <img
+                                src={selectedContestant.image}
+                                alt={selectedContestant.name}
+                                className="w-full h-full object-cover rounded-lg"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-white font-medium truncate">{selectedContestant.name}</h3>
+                              <p className="text-[#FFD700] text-sm truncate">{selectedContest.title}</p>
+                              <p className="text-gray-400 text-xs mt-1">Tap photo to enlarge</p>
+                            </div>
+                          </div>
 
-                      <div className="flex justify-end gap-3">
-                        <button
-                          onClick={() => setShowVoteDialog(false)}
-                          className="px-4 py-2 border border-gray-600 rounded-full hover:bg-[#3A3A3A] transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleVotePayment}
-                          disabled={!isPaystackReady}
-                          className={`px-4 py-2 bg-[#FFD700] text-[#1A1A1A] rounded-full font-bold hover:bg-[#E6C200] transition-colors ${!isPaystackReady ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
-                        >
-                          {isPaystackReady ? 'Confirm Vote (₦100)' : 'Loading Payment...'}
-                        </button>
+                          {/* Vote Input - Mobile Friendly */}
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium mb-1 text-gray-300">
+                              Number of Votes <span className="text-[#FFD700]">(₦100/vote)</span>
+                            </label>
+                            <div className="flex items-center">
+                              <button
+                                onClick={() => setVoteAmount(prev => Math.max(1, prev - 1))}
+                                className="bg-[#333333] text-white p-3 rounded-l-lg border border-[#444444]"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min="1"
+                                value={voteAmount}
+                                onChange={(e) => {
+                                  const value = parseInt(e.target.value) || 1;
+                                  setVoteAmount(Math.max(1, value));
+                                  setVoteAmountError('');
+                                }}
+                                className="flex-1 bg-[#333333] border-y border-[#444444] text-white text-center p-3 focus:outline-none"
+                              />
+                              <button
+                                onClick={() => setVoteAmount(prev => prev + 1)}
+                                className="bg-[#333333] text-white p-3 rounded-r-lg border border-[#444444]"
+                              >
+                                +
+                              </button>
+                            </div>
+                            {voteAmountError && (
+                              <p className="text-red-500 text-xs mt-1">{voteAmountError}</p>
+                            )}
+                          </div>
+
+                          {/* Comment - Mobile Optimized */}
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium mb-1 text-gray-300">
+                              Comment <span className="text-gray-500 text-xs">(optional)</span>
+                            </label>
+                            <textarea
+                              value={commentText}
+                              onChange={(e) => setCommentText(e.target.value)}
+                              className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-1 focus:ring-[#FFD700] text-sm"
+                              rows={3}
+                              placeholder="Your message..."
+                              maxLength={120}
+                            />
+                            <p className="text-right text-xs text-gray-500 mt-1">
+                              {commentText.length}/120
+                            </p>
+                          </div>
+
+                          {/* Payment Summary - Always Visible */}
+                          <div className="sticky bottom-0 bg-[#2A2A2A] border-t border-[#3A3A3A] p-4 -mx-4 -mb-4">
+                            <div className="flex justify-between items-center mb-3">
+                              <div>
+                                <p className="text-gray-400 text-sm">Total Votes</p>
+                                <p className="text-white font-medium">{voteAmount}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-gray-400 text-sm">Amount to Pay</p>
+                                <p className="text-[#FFD700] font-bold text-lg">
+                                  ₦{(voteAmount * 100).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Action Buttons - Full Width on Mobile */}
+                            <div className="flex space-x-3">
+                              <button
+                                onClick={() => {
+                                  setShowVoteDialog(false);
+                                  setVoteAmount(1);
+                                  setVoteAmountError('');
+                                }}
+                                className="flex-1 py-3 border border-[#444444] text-gray-300 rounded-lg hover:bg-[#3A3A3A] text-sm"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={handleVotePayment}
+                                className="flex-1 py-3 bg-[#FFD700] hover:bg-[#E6C200] text-[#1A1A1A] font-bold rounded-lg text-sm"
+                              >
+                                Pay Now
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -2722,7 +2768,11 @@ function EntertainmentWebsite() {
             <div className="flex justify-between items-start mb-4">
               <h2 className="text-xl font-bold text-[#FFD700]">Vote for {selectedContestant.name}</h2>
               <button
-                onClick={() => setShowVoteDialog(false)}
+                onClick={() => {
+                  setShowVoteDialog(false);
+                  setVoteAmount(1);
+                  setVoteAmountError('');
+                }}
                 className="text-gray-400 hover:text-[#FFD700] cursor-pointer"
               >
                 <FiX size={24} />
@@ -2735,8 +2785,32 @@ function EntertainmentWebsite() {
               showVoteInfo={false}
             />
 
-            <div>
+            <div className="mt-4">
               <label className="block text-sm font-medium mb-2 text-gray-300">
+                Number of Votes (₦100 per vote)
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={voteAmount}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (value >= 1) {
+                    setVoteAmount(value);
+                    setVoteAmountError('');
+                  } else {
+                    setVoteAmount(1);
+                  }
+                }}
+                className="w-full p-3 bg-[#333333] border border-[#444444] text-white rounded-lg focus:ring-2 focus:ring-[#FFD700] focus:border-[#FFD700] cursor-text"
+              />
+              {voteAmountError && (
+                <p className="text-red-500 text-sm mt-1">{voteAmountError}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-300 mt-4">
                 Add a comment (optional)
               </label>
               <textarea
@@ -2747,9 +2821,25 @@ function EntertainmentWebsite() {
                 placeholder="Your anonymous comment..."
               ></textarea>
             </div>
+
+            <div className="mt-6 bg-[#333333] p-4 rounded-lg">
+              <div className="flex justify-between mb-2">
+                <span className="text-gray-300">Votes:</span>
+                <span className="text-white">{voteAmount}</span>
+              </div>
+              <div className="flex justify-between font-bold">
+                <span className="text-gray-300">Total Amount:</span>
+                <span className="text-[#FFD700]">₦{(voteAmount * 100).toLocaleString()}</span>
+              </div>
+            </div>
+
             <div className="flex justify-end gap-3 mt-4">
               <button
-                onClick={() => setShowVoteDialog(false)}
+                onClick={() => {
+                  setShowVoteDialog(false);
+                  setVoteAmount(1);
+                  setVoteAmountError('');
+                }}
                 className="px-4 py-2 border border-gray-600 rounded-full hover:bg-[#3A3A3A] transition-colors cursor-pointer"
               >
                 Cancel
@@ -2758,7 +2848,7 @@ function EntertainmentWebsite() {
                 onClick={handleVotePayment}
                 className="px-4 py-2 bg-[#FFD700] text-[#1A1A1A] rounded-full hover:bg-[#E6C200] transition-transform transform hover:scale-105 cursor-pointer"
               >
-                Vote Now (₦100)
+                Pay ₦{(voteAmount * 100).toLocaleString()}
               </button>
             </div>
           </div>
