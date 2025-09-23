@@ -4,6 +4,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation'; // Import useRouter for navigation
 import { FiAward, FiUsers, FiPlayCircle, FiCreditCard, FiPlus, FiEdit2, FiTrash2, FiPauseCircle, FiLogOut, FiX, FiCalendar, FiMapPin } from 'react-icons/fi';
 import * as Toast from '@radix-ui/react-toast';
 import { db, collection, doc, updateDoc } from '@/lib/firebase';
@@ -12,6 +13,7 @@ import { uploadImage } from '@/lib/cloudinary';
 import { addContest, updateContest, deleteContest, addContestant as serviceAddContestant, updateContestant as serviceUpdateContestant, deleteContestant as serviceDeleteContestant } from '@/services/firebase/contests';
 import { addEvent as serviceAddEvent, updateEvent as serviceUpdateEvent, deleteEvent as serviceDeleteEvent, subscribeToEvents } from '@/services/event';
 import { Contest, Contestant, Event, AppComment } from '@/types';
+import { getAuth, signOut } from 'firebase/auth'; // Import Firebase auth functions
 
 function AdminPanel() {
   const [isAdmin, setIsAdmin] = useState(true);
@@ -48,6 +50,8 @@ function AdminPanel() {
   const [editingContestant, setEditingContestant] = useState<Contestant | null>(null);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [toasts, setToasts] = useState<{ id: string; title: string; description: string; type: 'success' | 'error' }[]>([]);
+  const router = useRouter(); // Initialize router
+  const auth = getAuth(); // Initialize Firebase auth
 
   // Toast functions
   const showToast = (title: string, description: string, type: 'success' | 'error' = 'success') => {
@@ -56,6 +60,19 @@ function AdminPanel() {
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 5000);
+  };
+
+  // Logout function
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setIsAdmin(false);
+      showToast('Success', 'Successfully logged out');
+      router.push('/signin');
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      showToast('Error', `Failed to log out: ${error.message}`, 'error');
+    }
   };
 
   // Fetch real data from Firestore in real-time
@@ -418,11 +435,11 @@ function AdminPanel() {
               </h1>
             </div>
             <button
-              onClick={() => setIsAdmin(false)}
-              className="flex items-center space-x-1 sm:space-x-2 bg-white/10 hover:bg-white/20 p-2 sm:px-4 sm:py-2 rounded-lg transition-all duration-200"
+              onClick={handleLogout}
+              className="flex items-center cursor-pointer space-x-1 sm:space-x-2 bg-white/10 hover:bg-white/20 p-2 sm:px-4 sm:py-2 rounded-lg transition-all duration-200"
             >
               <FiLogOut className="text-white" />
-              <span className="hidden sm:inline">Exit Admin</span>
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </div>
@@ -499,7 +516,7 @@ function AdminPanel() {
                   isActive: true
                 });
               }}
-              className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-4 py-2 rounded-lg transition-colors"
+              className="flex items-center space-x-2 cursor-pointer bg-[#4F46E5] hover:bg-[#4338CA] text-white px-4 py-2 rounded-lg transition-colors"
             >
               <FiPlus />
               <span>Add Contest</span>
@@ -581,14 +598,14 @@ function AdminPanel() {
                     setEditingContest(null);
                     setShowContestForm(false);
                   }}
-                  className="px-4 py-2 border border-[#444444] text-gray-300 rounded-lg hover:bg-[#333333] transition-colors"
+                  className="px-4 py-2 border border-[#444444] cursor-pointer text-gray-300 rounded-lg hover:bg-[#333333] transition-colors"
                 >
                   Cancel
                 </button>
 
                 <button
                   onClick={editingContest ? updateContestHandler : addContestHandler}
-                  className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-6 py-2 rounded-lg transition-colors"
+                  className="flex items-center space-x-2 bg-[#4F46E5] cursor-pointer hover:bg-[#4338CA] text-white px-6 py-2 rounded-lg transition-colors"
                 >
                   {editingContest ? (
                     <>
@@ -660,7 +677,7 @@ function AdminPanel() {
                             e.stopPropagation();
                             setEditingContest(contest);
                           }}
-                          className="text-[#FFD700] hover:text-[#E6C200]"
+                          className="text-[#FFD700] cursor-pointer hover:text-[#E6C200]"
                           title="Edit"
                         >
                           <FiEdit2 size={16} />
@@ -670,7 +687,7 @@ function AdminPanel() {
                             e.stopPropagation();
                             toggleContestStatus(contest.id);
                           }}
-                          className={`${contest.isActive ? 'text-yellow-500 hover:text-yellow-400' : 'text-green-500 hover:text-green-400'}`}
+                          className={`${contest.isActive ? 'text-yellow-500 cursor-pointer hover:text-yellow-400' : 'text-green-500 hover:text-green-400'}`}
                           title={contest.isActive ? 'Deactivate' : 'Activate'}
                         >
                           {contest.isActive ? (
@@ -684,7 +701,7 @@ function AdminPanel() {
                             e.stopPropagation();
                             deleteContestHandler(contest.id);
                           }}
-                          className="text-red-600 hover:text-red-500"
+                          className="text-red-600 cursor-pointer hover:text-red-500"
                           title="Delete"
                         >
                           <FiTrash2 size={16} />
@@ -715,7 +732,7 @@ function AdminPanel() {
                         isActive: true
                       });
                     }}
-                    className="text-gray-400 hover:text-[#FFD700] p-1 rounded-full"
+                    className="text-gray-400 hover:text-[#FFD700] p-1 rounded-full cursor-pointer"
                   >
                     <FiX size={24} />
                   </button>
@@ -846,14 +863,14 @@ function AdminPanel() {
                         {editingContestant && (
                           <button
                             onClick={() => setEditingContestant(null)}
-                            className="px-4 py-2 border border-[#444444] text-gray-300 rounded-lg hover:bg-[#333333] transition-colors"
+                            className="px-4 py-2 border border-[#444444] cursor-pointer text-gray-300 rounded-lg hover:bg-[#333333] transition-colors"
                           >
                             Cancel
                           </button>
                         )}
                         <button
                           onClick={editingContestant ? updateContestantHandler : addContestantHandler}
-                          className="flex items-center space-x-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-6 py-2 rounded-lg transition-colors"
+                          className="flex items-center space-x-2 bg-[#4F46E5] cursor-pointer hover:bg-[#4338CA] text-white px-6 py-2 rounded-lg transition-colors"
                         >
                           {editingContestant ? (
                             <>
@@ -901,13 +918,13 @@ function AdminPanel() {
                                 <div className="flex space-x-2">
                                   <button
                                     onClick={() => setEditingContestant(contestant)}
-                                    className="text-[#4F46E5] hover:text-[#4338CA]"
+                                    className="text-[#4F46E5] hover:text-[#4338CA] cursor-pointer"
                                   >
                                     <FiEdit2 />
                                   </button>
                                   <button
                                     onClick={() => deleteContestantHandler(contestant.id)}
-                                    className="text-red-600 hover:text-red-500"
+                                    className="text-red-600 hover:text-red-500 cursor-pointer"
                                   >
                                     <FiTrash2 />
                                   </button>
@@ -934,7 +951,7 @@ function AdminPanel() {
                               <div className="mt-4 flex justify-between">
                                 <button
                                   onClick={() => toggleContestantStatus(contestant.id)}
-                                  className={`px-3 py-1 text-xs rounded-full ${contestant.isActive ? 'bg-yellow-900 text-yellow-300' : 'bg-green-900 text-green-300'}`}
+                                  className={`px-3 py-1 text-xs rounded-full cursor-pointer ${contestant.isActive ? 'bg-yellow-900 text-yellow-300' : 'bg-green-900 text-green-300'}`}
                                   disabled={!selectedContest.isActive}
                                 >
                                   {contestant.isActive ? 'Deactivate' : 'Activate'}
@@ -1180,14 +1197,14 @@ function AdminPanel() {
               {editingEvent && (
                 <button
                   onClick={() => setEditingEvent(null)}
-                  className="px-3 sm:px-4 py-1 sm:py-2 border border-[#444444] text-gray-300 rounded-lg hover:bg-[#333333] transition-colors text-xs sm:text-sm"
+                  className="px-3 sm:px-4 py-1 sm:py-2 border cursor-pointer border-[#444444] text-gray-300 rounded-lg hover:bg-[#333333] transition-colors text-xs sm:text-sm"
                 >
                   Cancel
                 </button>
               )}
               <button
                 onClick={editingEvent ? updateEventHandler : addEventHandler}
-                className="flex items-center space-x-1 sm:space-x-2 bg-gradient-to-r from-[#FFD700] to-[#E6C200] hover:opacity-90 text-[#1A1A1A] px-4 sm:px-6 py-1 sm:py-2 rounded-lg transition-colors font-semibold text-xs sm:text-sm"
+                className="flex items-center space-x-1 cursor-pointer sm:space-x-2 bg-gradient-to-r from-[#FFD700] to-[#E6C200] hover:opacity-90 text-[#1A1A1A] px-4 sm:px-6 py-1 sm:py-2 rounded-lg transition-colors font-semibold text-xs sm:text-sm"
               >
                 {editingEvent ? (
                   <>
@@ -1247,14 +1264,14 @@ function AdminPanel() {
                   <div className="flex justify-between">
                     <button
                       onClick={() => setEditingEvent(event)}
-                      className="text-indigo-600 hover:text-indigo-800"
+                      className="text-indigo-600 hover:text-indigo-800 cursor-pointer"
                       title="Edit"
                     >
                       <FiEdit2 size={16} />
                     </button>
                     <button
                       onClick={() => toggleEventStatus(event.id)}
-                      className={`${event.isActive ? 'text-yellow-500 hover:text-yellow-400' : 'text-green-500 hover:text-green-400'}`}
+                      className={`${event.isActive ? 'text-yellow-500 cursor-pointer hover:text-yellow-400' : 'text-green-500 hover:text-green-400'}`}
                       title={event.isActive ? 'Deactivate' : 'Activate'}
                     >
                       {event.isActive ? (
@@ -1265,7 +1282,7 @@ function AdminPanel() {
                     </button>
                     <button
                       onClick={() => deleteEventHandler(event.id)}
-                      className="text-red-600 hover:text-red-800"
+                      className="text-red-600 hover:text-red-800 cursor-pointer"
                       title="Delete"
                     >
                       <FiTrash2 size={16} />

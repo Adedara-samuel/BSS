@@ -141,7 +141,7 @@ const SignInPage = () => {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className={`w-full bg-[#FFD700] text-[#1A1A1A] py-3 rounded-lg font-medium hover:bg-[#E6C200] transition-colors flex items-center justify-center ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        className={`w-full bg-[#FFD700] cursor-pointer text-[#1A1A1A] py-3 rounded-lg font-medium hover:bg-[#E6C200] transition-colors flex items-center justify-center ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
                         <FiLogIn className="mr-2" />
                         {isLoading ? 'Signing In...' : 'Sign In'}
